@@ -21,7 +21,6 @@
 //  IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #import <Foundation/Foundation.h>
-#import "TOGridViewCell.h"
 
 @class TOGridView;
 @class TOGridViewCell;
@@ -46,6 +45,7 @@
 - (NSUInteger)heightOfRowsInGridView: (TOGridView *)gridView;
 - (NSUInteger)offsetOfCellsInRowsInGridView: (TOGridView *)gridView;
 - (void)gridView: (TOGridView *) didTapCellAtIndex: (NSUInteger)index;
+- (void)gridView:(TOGridView *)gridView didLongTapCellAtIndex: (NSInteger)index;
 
 @end
 
@@ -90,6 +90,9 @@
     /* Y-offset of cell, within the row */
     NSInteger _offsetOfCellsInRow;
     
+    /* Only one cell can ever be highlighted at once. This tracks that state */
+    NSInteger _highlightedCellIndex;
+    
     struct {
         unsigned int dataSourceNumberOfCells;
         unsigned int dataSourceCellForIndex;
@@ -100,6 +103,7 @@
         unsigned int delegateDecorationView;
         unsigned int delegateHeightOfRows;
         unsigned int delegateOffsetOfCellInRow;
+        unsigned int delegateDidLongTapCell;
     } _gridViewFlags;
 }
 
@@ -108,6 +112,7 @@
 @property(nonatomic,strong) UIView                       *headerView;
 @property(nonatomic,strong) UIView                       *backgroundView;
 @property(nonatomic,assign) BOOL                         editing;
+@property(nonatomic,assign) NSInteger                    highlightedCellIndex;
 
 /* Init the class, and register the cell class to use at the same time */
 - (id)initWithFrame:(CGRect)frame withCellClass: (Class)cellClass;
@@ -125,5 +130,9 @@
 
 /* Reload the entire table */
 - (void)reloadGrid;
+
+/**************************************************/
+/* Cell callbacks */
+- (void)tappedCellAtIndex: (NSInteger)cellIndex;
 
 @end
