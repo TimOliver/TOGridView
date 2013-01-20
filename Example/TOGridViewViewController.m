@@ -37,13 +37,12 @@
     _gridView.dataSource = self;
     [self.view addSubview: _gridView]; 
      
-    
     UIView *backgroundView = [[UIView alloc] initWithFrame: self.view.bounds];
     backgroundView.backgroundColor = [UIColor scrollViewTexturedBackgroundColor];
     _gridView.backgroundView = backgroundView;
     
     UIView *headerView = [[UIView alloc] initWithFrame: CGRectMake(0, 0, CGRectGetWidth(self.view.bounds), 150)];
-    headerView.backgroundColor = [UIColor redColor];
+    headerView.backgroundColor = [UIColor whiteColor];
     _gridView.headerView = headerView;
 }
 

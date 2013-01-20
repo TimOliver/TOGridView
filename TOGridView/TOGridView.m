@@ -221,6 +221,8 @@
     if( [_recycledCells count] )
         [_visibleCells minusSet: _recycledCells];
     
+    /* Only proceed with the following code if the number of visible cells is too low. */
+    /* This code produces the most latency, so minimizing its use is critical */
     if( [_visibleCells count] >= _visibleCellRange.length )
         return;
     
@@ -249,13 +251,26 @@
     }
 }
 
+/* 
+ layoutSubviews is called automatically whenever the scrollView's contentOffset changes,
+ or when the parent ViewController changes orientation.
+ 
+ This orientation animation technique is a modified version of one of the techniques that was 
+ presented at WWDC 2012 in the presentation 'Polishing Your Interface Rotations'.
+ 
+ When the iOS device is physically rotated and the orientation change event fires, (Which is captured here by detecting
+ when a CAAnimation has been applied to the 'bounds' property of the view), the view quickly renders 
+ the 'before' and 'after' arrangement of the cells to UIImageViews. It then hides the original cells, overlays both image
+ views over the top, and cross-fade animates between the two.
+*/
 - (void)layoutSubviews
 {
     [super layoutSubviews];
-        
+    
+    /* The ImageViews to store the before and after snapshots */
     __block UIImageView *_beforeSnapshot, *_afterSnapshot;
     
-    //detecting an animation to change the bounds
+    /* Apply the crossfade effect if this method is being called while there is a pending 'bounds' animation present. */
     CABasicAnimation *boundsAnimation = (CABasicAnimation *)[self.layer animationForKey: @"bounds"];
     if( boundsAnimation )
     {
@@ -263,7 +278,16 @@
         
         //halt the scroll view if it's currently moving
         if( self.isDecelerating || self.isDragging )
-            [self setContentOffset: self.bounds.origin animated: NO];
+        {
+            CGPoint contentOffset = self.bounds.origin;
+            
+            if( contentOffset.y < 0) //reset back to 0 if it's rubber-banding at the top
+                [self setContentOffset: CGPointZero animated: NO];
+            else if ( contentOffset.y > self.contentSize.height - CGRectGetHeight(self.bounds) ) // reset if rubber-banding at the bottom
+                [self setContentOffset: CGPointMake( 0, self.contentSize.height - CGRectGetHeight(self.bounds) ) animated: NO];
+            else
+                [self setContentOffset: contentOffset animated: NO];
+        }
         
         CGRect beforeRect = [boundsAnimation.fromValue CGRectValue];
         _beforeSnapshot = [[UIImageView alloc] initWithImage: [self snapshotOfCellsInRect: beforeRect]];
