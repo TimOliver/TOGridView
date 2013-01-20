@@ -24,23 +24,32 @@
 
 @class TOGridView;
 
-@interface TOGridViewCell : UIView <UIGestureRecognizerDelegate> {
-    /* The parent grid view this cell is assigned to */
-    __weak TOGridView *_gridView;
-    
+@interface TOGridViewCell : UIView <UIGestureRecognizerDelegate> {    
     /* Whether the cell is currently in an editing state */
     BOOL _isEditing;
+    
+    /* Whether the cell is currently 'highlighted' (eg, when a user taps it to open something) */
+    BOOL isHighlighted;
+    
+    /* Whether the cell is 'selected' (eg, when the user is selecting multiple cells) */
+    BOOL _isSelected;
     
     /* Various gesture recognizers for detecting interactions with the cell */
     UITapGestureRecognizer          *_tapGestureRecognizer;
     UISwipeGestureRecognizer        *_swipeGestureRecognizer;
-    UILongPressGestureRecognizer    *_longHoldGestureRecognizer;
+    UILongPressGestureRecognizer    *_longPressGestureRecognizer;
 }
 
 - (void)setEditing: (BOOL)editing animated: (BOOL)animated;
+- (void)setHighlighted: (BOOL)highlighted animated:(BOOL)animated;
 
 @property (nonatomic, assign) NSUInteger index;
 @property (nonatomic, weak) TOGridView *gridView;
+
 @property (nonatomic, assign) BOOL isEditing;
+@property (nonatomic, assign) BOOL isSelected;
+@property (nonatomic, assign) BOOL isHighlighted;
+
+
 
 @end

@@ -21,6 +21,7 @@
 //  IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #import "TOGridView.h"
+#import "TOGridViewCell.h"
 #import <QuartzCore/QuartzCore.h>
 
 @interface TOGridView (hidden)
@@ -40,7 +41,8 @@
 @synthesize dataSource = _dataSource,
             headerView = _headerView,
             backgroundView = _backgroundView,
-            editing = _editing;
+            editing = _isEditing,
+            highlightedCellIndex = _highlightedCellIndex;
 
 #pragma mark -
 #pragma mark View Management
@@ -54,9 +56,11 @@
         self.scrollEnabled          = YES;
         self.alwaysBounceVertical   = YES;
         
-        _recycledCells  = [NSMutableSet new];
-        _visibleCells   = [NSMutableSet new];
-        _cellClass      = [TOGridViewCell class];
+        _recycledCells              = [NSMutableSet new];
+        _visibleCells               = [NSMutableSet new];
+        _cellClass                  = [TOGridViewCell class];
+        
+        _highlightedCellIndex       = -1;
     }
     
     return self;
@@ -448,9 +452,11 @@
         return cell;
     }
     
-    cell = [[_cellClass alloc] init];
+    cell = [_cellClass new];
     cell.frame = CGRectMake(0, 0, _cellSize.width, _cellSize.height);
     cell.gridView = self;
+    cell.isHighlighted = NO;
+    
     return cell;
 }
 
@@ -484,6 +490,7 @@
     _gridViewFlags.delegateNumberOfCellsPerRow  = [self.delegate respondsToSelector: @selector(numberOfCellsPerRowForGridView:)];
     _gridViewFlags.delegateSizeOfCells          = [self.delegate respondsToSelector: @selector(sizeOfCellsForGridView:)];
     _gridViewFlags.delegateHeightOfRows         = [self.delegate respondsToSelector: @selector(heightOfRowsInGridView:)];
+    _gridViewFlags.delegateDidLongTapCell       = [self.delegate respondsToSelector: @selector(gridView:didLongTapCellAtIndex:)];
 }
 
 - (void)setDataSource:(id<TOGridViewDataSource>)dataSource
