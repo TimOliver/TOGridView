@@ -15,8 +15,8 @@ several of the open-source collection/grid views on GitHub, I eventually came to
 
 Reasons for this include:
 
-  * UICollectionView is iOS 6 exclusive. Since I want iComics to support the first gen iPad (Which only goes up to iOS 5), it's not an option.
-  * All of the other collection view classes are desinged to be as flexible as possible, which also means they're very complex, with huge learning curves. I'm creating this class only with iComics' design requirements in mind. 
+  * UICollectionView is iOS 6 exclusive. Since I want iComics to support the first gen iPad (Which only goes up to iOS 5), it's not an option. 
+  * All of the other collection view classes are designed to be as flexible as possible, which also means they're very complex, with huge learning curves. I'm creating this class only with iComics' design requirements in mind, with the idea that it can be streamlined and optimised much more easily than those larger classes. 
   * I have not seen a SINGLE class (UICollectionView included) that elegantly animates interface orientation changes at 60FPS on all iOS devices. I plan to fix this. :D
 
 ## Features
