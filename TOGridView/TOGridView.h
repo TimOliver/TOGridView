@@ -103,10 +103,11 @@
     } _gridViewFlags;
 }
 
-@property(nonatomic,assign)   id <TOGridViewDataSource>     dataSource;
-@property(nonatomic,assign)   id <TOGridViewDelegate>       delegate;
-@property(nonatomic,strong)   UIView                        *headerView;
-@property(nonatomic,strong)   UIView                        *backgroundView;
+@property(nonatomic,assign) id <TOGridViewDataSource>    dataSource;
+@property(nonatomic,assign) id <TOGridViewDelegate>      delegate;
+@property(nonatomic,strong) UIView                       *headerView;
+@property(nonatomic,strong) UIView                       *backgroundView;
+@property(nonatomic,assign) BOOL                         editing;
 
 /* Init the class, and register the cell class to use at the same time */
 - (id)initWithFrame:(CGRect)frame withCellClass: (Class)cellClass;

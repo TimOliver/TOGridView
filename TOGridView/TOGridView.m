@@ -37,7 +37,10 @@
 
 @implementation TOGridView
 
-@synthesize dataSource = _dataSource, headerView = _headerView, backgroundView = _backgroundView;
+@synthesize dataSource = _dataSource,
+            headerView = _headerView,
+            backgroundView = _backgroundView,
+            editing = _editing;
 
 #pragma mark -
 #pragma mark View Management
@@ -78,6 +81,20 @@
 - (void)didMoveToSuperview
 {
     [self reloadGrid];
+}
+
+- (void)dealloc
+{
+    /* Remove the weak leak references from the cells */
+    for( TOGridViewCell *cell in _recycledCells )
+        cell.gridView = nil;
+    
+    for( TOGridViewCell *cell in _visibleCells )
+        cell.gridView = nil;
+    
+    /* General clean-up */
+    _recycledCells = nil;
+    _visibleCells = nil;
 }
 
 #pragma mark -
@@ -134,13 +151,14 @@
     self.contentSize = [self contentSizeOfScrollView];
 }
 
+/* Take into account the offsets/header size/cell rows to cacluclate the total size of the scrollview */
 - (CGSize)contentSizeOfScrollView
 {
     CGSize size;
-    size.width = CGRectGetWidth(self.bounds);
+    size.width      = CGRectGetWidth(self.bounds);
     
-    size.height = _offsetFromHeader;
-    size.height += _cellPaddingInset.height * 2;
+    size.height     = _offsetFromHeader;
+    size.height     += _cellPaddingInset.height * 2;
     
     if( _numberOfCells )
         size.height += (NSInteger)(ceil( (CGFloat)_numberOfCells / (CGFloat)_numberOfCellsPerRow ) * _rowHeight);
@@ -148,12 +166,18 @@
     return size;
 }
 
+/* The origin of each cell */
 - (CGPoint)originOfCellAtIndex:(NSInteger)cellIndex
 {
     CGPoint origin;
     
-    origin.y = _offsetFromHeader + _offsetOfCellsInRow + _cellPaddingInset.height + (_rowHeight * floor(cellIndex/_numberOfCellsPerRow));
-    origin.x = _cellPaddingInset.width  + ((cellIndex % _numberOfCellsPerRow) * (_cellSize.width+_widthBetweenCells));
+    origin.y    = _offsetFromHeader;        /* The height of the header view */
+    origin.y    += _offsetOfCellsInRow;     /* Relative offset of the cell in each row */
+    origin.y    +=_cellPaddingInset.height; /* The inset padding arond the cells in the scrollview */
+    origin.y    += (_rowHeight * floor(cellIndex/_numberOfCellsPerRow));
+    
+    origin.x    =  _cellPaddingInset.width;
+    origin.x    += ((cellIndex % _numberOfCellsPerRow) * (_cellSize.width+_widthBetweenCells));
     
     return origin;
 }
@@ -182,6 +206,7 @@
     return nil;
 }
 
+/* layoutCells handles all of the recycling/dequeing of cells as the scrollview is scrolling */
 - (void)layoutCells
 {
     if( _numberOfCells == 0 )
@@ -221,8 +246,8 @@
     if( [_recycledCells count] )
         [_visibleCells minusSet: _recycledCells];
     
-    /* Only proceed with the following code if the number of visible cells is too low. */
-    /* This code produces the most latency, so minimizing its use is critical */
+    /* Only proceed with the following code if the number of visible cells is lower than it should be. */
+    /* This code produces the most latency, so minimizing its call frequency is critical */
     if( [_visibleCells count] >= _visibleCellRange.length )
         return;
     
@@ -235,6 +260,7 @@
             continue;
         
         cell = [_dataSource gridView: self cellForIndex: index];
+        cell.gridView = self;
         cell.index = index;
         
         CGRect cellFrame;
@@ -271,9 +297,11 @@
     __block UIImageView *_beforeSnapshot, *_afterSnapshot;
     
     /* Apply the crossfade effect if this method is being called while there is a pending 'bounds' animation present. */
+    /* Capture the 'before' state to UIImageView before we reposition all of the cells */
     CABasicAnimation *boundsAnimation = (CABasicAnimation *)[self.layer animationForKey: @"bounds"];
     if( boundsAnimation )
     {
+        //disable user interaction
         self.scrollEnabled = NO;
         
         //halt the scroll view if it's currently moving
@@ -289,9 +317,12 @@
                 [self setContentOffset: contentOffset animated: NO];
         }
         
+        //At this point, self.bounds is already the newly rotated value.
+        //The original bounds are still available as the 'before' value in the animation
         CGRect beforeRect = [boundsAnimation.fromValue CGRectValue];
         _beforeSnapshot = [[UIImageView alloc] initWithImage: [self snapshotOfCellsInRect: beforeRect]];
         
+        //poll the delegate again to see if anything needs changing since the bounds have changed
         [self resetCellMetrics];
         
         //manually set contentOffset's value based off bounds.
@@ -299,6 +330,7 @@
         if( self.contentSize.height - self.bounds.size.height >= beforeRect.origin.y )
             self.contentOffset = beforeRect.origin;
         
+        //reset the position and size of any cell already visible on the screen (as layoutCells ignores these)
         for( TOGridViewCell *cell in _visibleCells )
         {
             CGRect frame = cell.frame;
@@ -308,23 +340,27 @@
         }
     }
     
-    //update the cells
+    //layout the cells (and if we are mid-orientation, this will add/remove any more cells if required)
     [self layoutCells];
     
     //set up the second half of the animation crossfade and then animate it
     if( boundsAnimation )
-    {        
+    {
         CGFloat duration = boundsAnimation.duration;
         
+        //Bake the 'after' snapshot to the second imageView 
         CGRect afterRect = self.bounds;
         _afterSnapshot = [[UIImageView alloc] initWithImage: [self snapshotOfCellsInRect: afterRect]];
         
+        //Set up the positions of both image views
         _beforeSnapshot.frame = CGRectMake( CGRectGetMinX(self.frame), CGRectGetMinY(self.frame), CGRectGetWidth(_beforeSnapshot.frame), CGRectGetHeight(_beforeSnapshot.frame));
-        [_beforeSnapshot.layer removeAllAnimations];
-        
         _afterSnapshot.frame = CGRectMake( CGRectGetMinX(self.frame), CGRectGetMinY(self.frame), CGRectGetWidth(self.bounds), CGRectGetHeight(self.bounds));
+        
+        //remove any possible animations that may have been applied to these views in here
+        [_beforeSnapshot.layer removeAllAnimations];        
         [_afterSnapshot.layer removeAllAnimations];
         
+        //Hide all of the visible cells
         for( TOGridViewCell *cell in _visibleCells )
         {
             cell.hidden = YES;
@@ -339,19 +375,27 @@
         _afterSnapshot.alpha    = 0.0f;
         _beforeSnapshot.alpha   = 1.0f;
         
-        [UIView animateWithDuration: duration delay: 0.0f options: UIViewAnimationCurveEaseInOut animations: ^{
+        //perform the crossfade animation
+        [UIView animateWithDuration: duration
+                              delay: 0.0f
+                            options: UIViewAnimationCurveEaseInOut
+                         animations:
+        ^{
+            /* Crossfade both views */
             _beforeSnapshot.alpha = 0.0f;
             _afterSnapshot.alpha = 1.0f;
-        } completion: ^(BOOL complete) {
-            [_afterSnapshot removeFromSuperview];
-            [_beforeSnapshot removeFromSuperview];
+        }
+        completion: ^(BOOL complete)
+        {
+            /* Once finished, clean up the image views */
+            [_afterSnapshot removeFromSuperview];   _afterSnapshot  = nil;
+            [_beforeSnapshot removeFromSuperview];  _beforeSnapshot = nil;
             
-            _afterSnapshot = nil;
-            _beforeSnapshot = nil;
-            
+            //Unhide all of the cells
             for( TOGridViewCell *cell in _visibleCells )
                 cell.hidden = NO;
             
+            //re-enable user interaction
             self.scrollEnabled = YES;
         }];
     }
@@ -361,21 +405,30 @@
         _backgroundView.frame = CGRectMake( 0, self.bounds.origin.y, CGRectGetWidth(_backgroundView.bounds), CGRectGetHeight(_backgroundView.bounds));
 }
 
+/* Returns a UIImage of all of the visible cells on screen baked into it. */
 - (UIImage *)snapshotOfCellsInRect:(CGRect)rect
 {
+    UIImage *image = nil;
+    
     UIGraphicsBeginImageContextWithOptions( rect.size, NO, [[UIScreen mainScreen] scale] );
-    
-    CGContextRef context = UIGraphicsGetCurrentContext();
-    for( TOGridViewCell *cell in _visibleCells )
     {
-        CGContextSaveGState(context);
-        CGContextTranslateCTM( context, cell.frame.origin.x, (cell.frame.origin.y-CGRectGetMinY(rect)) );
-        [cell.layer renderInContext: context];
-        CGContextRestoreGState(context);
-    }
+        CGContextRef context = UIGraphicsGetCurrentContext();
         
-    UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
-    
+        for( TOGridViewCell *cell in _visibleCells )
+        {
+            //Save/Restore the graphics states to reset the translations for each cell
+            CGContextSaveGState(context);
+            {
+                //As 'renderInContext' uses the calling CALayer's local co-ord space,
+                //the cells need to be positioned in the canvas using Quartz's matrix translations.
+                CGContextTranslateCTM( context, cell.frame.origin.x, (cell.frame.origin.y-CGRectGetMinY(rect)) );
+                [cell.layer renderInContext: context];
+            }
+            CGContextRestoreGState(context);
+        }
+            
+        image = UIGraphicsGetImageFromCurrentImageContext();
+    }
     UIGraphicsEndImageContext();
     
     return image;
