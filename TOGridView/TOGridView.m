@@ -465,7 +465,11 @@
 {
     UIImage *image = nil;
     
-    UIGraphicsBeginImageContextWithOptions( rect.size, NO, 0.0f );
+    /* 
+     Testing rendering the context, locked to non-Retina. Even if the iPad 3 only has to render one Retina bitmap,
+     there's still a lot of latency. And when the view is rotating, you can't even really see the Retina graphics.
+     */
+    UIGraphicsBeginImageContextWithOptions( rect.size, NO, 1.0f );
     {
         CGContextRef context = UIGraphicsGetCurrentContext();
         
