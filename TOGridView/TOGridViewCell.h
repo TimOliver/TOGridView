@@ -25,31 +25,36 @@
 @class TOGridView;
 
 @interface TOGridViewCell : UIView <UIGestureRecognizerDelegate> {    
-    /* Whether the cell is currently in an editing state */
-    BOOL _isEditing;
     
-    /* Whether the cell is currently 'highlighted' (eg, when a user taps it to open something) */
-    BOOL isHighlighted;
-    
-    /* Whether the cell is 'selected' (eg, when the user is selecting multiple cells) */
-    BOOL _isSelected;
+    /* State tracking that would change the appearence of the cell. */
+    BOOL _isEditing;        /* Whether the cell is currently in an editing state */
+    BOOL _isHighlighted;    /* Cell is currently 'highlighted' (eg, when a user taps it to open something) */
+    BOOL _isSelected;       /* Cell is 'selected' (eg, when the user is selecting multiple cells for a batch operation) */
     
     /* Various gesture recognizers for detecting interactions with the cell */
-    UITapGestureRecognizer          *_tapGestureRecognizer;
     UISwipeGestureRecognizer        *_swipeGestureRecognizer;
     UILongPressGestureRecognizer    *_longPressGestureRecognizer;
+    
+    UIView *_contentView;
 }
 
 - (void)setEditing: (BOOL)editing animated: (BOOL)animated;
 - (void)setHighlighted: (BOOL)highlighted animated:(BOOL)animated;
+- (void)setSelected: (BOOL)selected animated:(BOOL)animated;
 
-@property (nonatomic, assign) NSUInteger index;
-@property (nonatomic, weak) TOGridView *gridView;
+@property (nonatomic, assign)   NSUInteger index;
+@property (nonatomic, weak)     TOGridView *gridView;
 
-@property (nonatomic, assign) BOOL isEditing;
-@property (nonatomic, assign) BOOL isSelected;
-@property (nonatomic, assign) BOOL isHighlighted;
+@property (nonatomic, assign)   BOOL isEditing;
+@property (nonatomic, assign)   BOOL isSelected;
+@property (nonatomic, assign)   BOOL isHighlighted;
 
+/* Views for various states that are placed in the background */
+@property (nonatomic, strong)   UIView *backgroundView;
+@property (nonatomic, strong)   UIView *highlightedBackgroundView;
+@property (nonatomic, strong)   UIView *selectedBackgroundView;
 
+/* The primary view to place dynamic content */
+@property (nonatomic, readonly) UIView *contentView;
 
 @end

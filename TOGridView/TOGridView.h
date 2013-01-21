@@ -44,8 +44,8 @@
 - (UIView *)gridView: (TOGridView *)gridView decorationViewForRowWithIndex: (NSUInteger)rowIndex;
 - (NSUInteger)heightOfRowsInGridView: (TOGridView *)gridView;
 - (NSUInteger)offsetOfCellsInRowsInGridView: (TOGridView *)gridView;
-- (void)gridView: (TOGridView *) didTapCellAtIndex: (NSUInteger)index;
-- (void)gridView:(TOGridView *)gridView didLongTapCellAtIndex: (NSInteger)index;
+- (void)gridView: (TOGridView *)gridView didTapCellAtIndex: (NSUInteger)index;
+- (void)gridView: (TOGridView *)gridView didLongTapCellAtIndex: (NSInteger)index;
 
 @end
 
@@ -103,6 +103,7 @@
         unsigned int delegateDecorationView;
         unsigned int delegateHeightOfRows;
         unsigned int delegateOffsetOfCellInRow;
+        unsigned int delegateDidTapCell;
         unsigned int delegateDidLongTapCell;
     } _gridViewFlags;
 }
@@ -124,15 +125,19 @@
 - (TOGridViewCell *)dequeReusableCell;
 - (UIView *)dequeueReusableDecorationView;
 
-/* Add/edit/delete cells */
+/* Add/delete cells */
+- (BOOL)insertCellAtIndex: (NSInteger)index animated: (BOOL)animated;
+- (BOOL)insertCellsAtIndicies: (NSArray *)indices animated: (BOOL)animated;
+
 - (BOOL)deleteCellAtIndex: (NSInteger)index animated: (BOOL)animated;
 - (BOOL)deleteCellsAtIndicies: (NSArray *)indices animated: (BOOL)animated;
 
+/* Unhighlight a cell after it had been tapped */
+- (void)unhighlightCellAtIndex: (NSInteger)index animated: (BOOL)animated;
+
+
+
 /* Reload the entire table */
 - (void)reloadGrid;
-
-/**************************************************/
-/* Cell callbacks */
-- (void)tappedCellAtIndex: (NSInteger)cellIndex;
 
 @end

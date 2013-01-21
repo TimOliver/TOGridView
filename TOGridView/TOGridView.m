@@ -89,7 +89,7 @@
 
 - (void)dealloc
 {
-    /* Remove the weak leak references from the cells */
+    /* Remove the weak references from the cells */
     for( TOGridViewCell *cell in _recycledCells )
         cell.gridView = nil;
     
@@ -151,7 +151,7 @@
                                            - (_cellSize.width * _numberOfCellsPerRow)) //minus the combined width of all cells
                                           / (_numberOfCellsPerRow-1)); //divided by the number of gaps between
     
-    /* Set up the scrollview */
+    /* Set up the scrollview and the subsequent contentView */
     self.contentSize = [self contentSizeOfScrollView];
 }
 
@@ -263,17 +263,37 @@
         if( cell )
             continue;
         
+        //Get the cell with its content setup from the dataSource
         cell = [_dataSource gridView: self cellForIndex: index];
         cell.gridView = self;
         cell.index = index;
         
+        //make sure the frame is still properly set
         CGRect cellFrame;
         cellFrame.origin = [self originOfCellAtIndex: index];
         cellFrame.size = _cellSize;
+        
+        //if there's supposed to be NO padding between the edge of the view and the cell,
+        //and this cell is short by uneven necessity of the number of cells per row (eg, 1024/3 on iPad = 341.333333333),
+        //pad it out
+        if( _cellPaddingInset.width <= 0.0f + FLT_EPSILON && (index+1) % _numberOfCellsPerRow == 0 )
+        {
+            if( CGRectGetMinX(cellFrame) + CGRectGetWidth(cellFrame) < CGRectGetWidth(self.bounds) + FLT_EPSILON )
+                cellFrame.size.width = CGRectGetWidth(self.bounds) - CGRectGetMinX(cellFrame);
+        }
+            
         cell.frame = cellFrame;
         
+        //unhighlight it
+        if( _highlightedCellIndex == index)
+            [cell setHighlighted: YES animated: NO];
+        else
+            [cell setHighlighted: NO animated: NO];
+        
+        //add it to the visible objects set (It's already out of the recycled set at this point)
         [_visibleCells addObject: cell];
         
+        //Make sure the cell is inserted ABOVE any visible background view, but still BELOW the scroller graphic view
         if( _backgroundView )
             [self insertSubview: cell aboveSubview: _backgroundView];
         else
@@ -283,15 +303,17 @@
 
 /* 
  layoutSubviews is called automatically whenever the scrollView's contentOffset changes,
- or when the parent ViewController changes orientation.
+ or when the parent view controller changes orientation.
  
  This orientation animation technique is a modified version of one of the techniques that was 
- presented at WWDC 2012 in the presentation 'Polishing Your Interface Rotations'.
+ presented at WWDC 2012 in the presentation 'Polishing Your Interface Rotations'. It's been designed
+ with the goal of handling everything from within the view itself, without requiring any additional work
+ on the view controller's behalf.
  
  When the iOS device is physically rotated and the orientation change event fires, (Which is captured here by detecting
- when a CAAnimation has been applied to the 'bounds' property of the view), the view quickly renders 
+ when a CAAnimation object has been applied to the 'bounds' property of the view), the view quickly renders 
  the 'before' and 'after' arrangement of the cells to UIImageViews. It then hides the original cells, overlays both image
- views over the top, and cross-fade animates between the two.
+ views over the top of the scrollview, and cross-fade animates between the two for the same duration as the rotation animation.
 */
 - (void)layoutSubviews
 {
@@ -306,7 +328,7 @@
     if( boundsAnimation )
     {
         //disable user interaction
-        self.scrollEnabled = NO;
+        self.userInteractionEnabled = NO;
         
         //halt the scroll view if it's currently moving
         if( self.isDecelerating || self.isDragging )
@@ -321,8 +343,8 @@
                 [self setContentOffset: contentOffset animated: NO];
         }
         
-        //At this point, self.bounds is already the newly rotated value.
-        //The original bounds are still available as the 'before' value in the animation
+        //At this point, self.bounds is already the newly resized value.
+        //The original bounds are still available as the 'before' value in the layer animation object
         CGRect beforeRect = [boundsAnimation.fromValue CGRectValue];
         _beforeSnapshot = [[UIImageView alloc] initWithImage: [self snapshotOfCellsInRect: beforeRect]];
         
@@ -330,24 +352,18 @@
         [self resetCellMetrics];
         
         //manually set contentOffset's value based off bounds.
-        //Not sure why, but if we don't do this, periodically, contentOffset resets to 0,0 and borks the animation :S
+        //Not sure why, but if we don't do this, periodically, contentOffset resets to [0,0] and borks the animation :S
         if( self.contentSize.height - self.bounds.size.height >= beforeRect.origin.y )
             self.contentOffset = beforeRect.origin;
         
         //reset the position and size of any cell already visible on the screen (as layoutCells ignores these)
-        for( TOGridViewCell *cell in _visibleCells )
-        {
-            CGRect frame = cell.frame;
-            frame.origin = [self originOfCellAtIndex: cell.index];
-            frame.size = _cellSize;
-            cell.frame = frame;
-        }
+        [self invalidateVisibleCells];
     }
     
-    //layout the cells (and if we are mid-orientation, this will add/remove any more cells if required)
+    //layout the cells (and if we are mid-orientation, this will add/remove any more cells as required)
     [self layoutCells];
     
-    //set up the second half of the animation crossfade and then animate it
+    //set up the second half of the animation crossfade and then start the crossfade animation
     if( boundsAnimation )
     {
         CGFloat duration = boundsAnimation.duration;
@@ -400,7 +416,7 @@
                 cell.hidden = NO;
             
             //re-enable user interaction
-            self.scrollEnabled = YES;
+            self.userInteractionEnabled = YES;
         }];
     }
     
@@ -414,13 +430,18 @@
 {
     UIImage *image = nil;
     
-    UIGraphicsBeginImageContextWithOptions( rect.size, NO, [[UIScreen mainScreen] scale] );
+    /* 
+     The graphics context is being created with a screen scale of 1.0 (eg non-Retina)
+     The reason for this is the iPad 3rd gen takes a fair amount of time to render out each snapshot at Retina resolutions (Slower than an iPad 1!).
+     And really, given how quickly the crossfade occurs, it's doubtful anyone will notice.
+    */
+    UIGraphicsBeginImageContextWithOptions( rect.size, NO, 1.0f );
     {
         CGContextRef context = UIGraphicsGetCurrentContext();
         
         for( TOGridViewCell *cell in _visibleCells )
         {
-            //Save/Restore the graphics states to reset the translations for each cell
+            //Save/Restore the graphics states to reset the global translation for each cell
             CGContextSaveGState(context);
             {
                 //As 'renderInContext' uses the calling CALayer's local co-ord space,
@@ -430,7 +451,7 @@
             }
             CGContextRestoreGState(context);
         }
-            
+        
         image = UIGraphicsGetImageFromCurrentImageContext();
     }
     UIGraphicsEndImageContext();
@@ -452,10 +473,10 @@
         return cell;
     }
     
-    cell = [_cellClass new];
+    cell = [[_cellClass alloc] initWithFrame: CGRectMake(0, 0, _cellSize.width, _cellSize.height)];
     cell.frame = CGRectMake(0, 0, _cellSize.width, _cellSize.height);
     cell.gridView = self;
-    cell.isHighlighted = NO;
+    [cell setHighlighted: NO animated: NO];
     
     return cell;
 }
@@ -466,6 +487,16 @@
 }
 
 /* Add/edit/delete cells */
+- (BOOL)insertCellAtIndex: (NSInteger)index animated: (BOOL)animated
+{
+    return YES;
+}
+
+- (BOOL)insertCellsAtIndicies: (NSArray *)indices animated: (BOOL)animated
+{
+    return YES;
+}
+
 - (BOOL)deleteCellAtIndex: (NSInteger)index animated: (BOOL)animated
 {
     return YES;
@@ -474,6 +505,18 @@
 - (BOOL)deleteCellsAtIndicies: (NSArray *)indices animated: (BOOL)animated
 {
     return YES;
+}
+
+- (void)unhighlightCellAtIndex: (NSInteger)index animated: (BOOL)animated
+{
+    if( _highlightedCellIndex != index )
+        return;
+    
+    TOGridViewCell *cell = [self cellForIndex: index];
+    if( cell )
+        [cell setHighlighted: NO animated: animated];
+    
+    _highlightedCellIndex = -1;
 }
 
 #pragma mark -
@@ -491,6 +534,7 @@
     _gridViewFlags.delegateSizeOfCells          = [self.delegate respondsToSelector: @selector(sizeOfCellsForGridView:)];
     _gridViewFlags.delegateHeightOfRows         = [self.delegate respondsToSelector: @selector(heightOfRowsInGridView:)];
     _gridViewFlags.delegateDidLongTapCell       = [self.delegate respondsToSelector: @selector(gridView:didLongTapCellAtIndex:)];
+    _gridViewFlags.delegateDidTapCell           = [self.delegate respondsToSelector: @selector(gridView:didTapCellAtIndex:)];
 }
 
 - (void)setDataSource:(id<TOGridViewDataSource>)dataSource
@@ -534,9 +578,6 @@
     _backgroundView.frame = self.bounds;
     
     [self insertSubview: _backgroundView atIndex: 0];
-    
-    for( TOGridViewCell *cell in _visibleCells )
-        [self insertSubview: cell aboveSubview: _backgroundView];
 }
 
 - (void)setFrame:(CGRect)frame
@@ -544,12 +585,14 @@
     [super setFrame: frame];
 
     /* If the frame changes, and we're NOT animating, invalidate all of the visible cells and reload the view */
-    /* If we are animating (eg, orientation change), this will be handled in layoutSubviews. */
+    /* If we ARE animating (eg, orientation change), this will be handled in layoutSubviews. */
     if( [self.layer animationForKey: @"bounds"] == nil )
     {
         [self invalidateVisibleCells];
         [self resetCellMetrics];
     }
 }
+
+
 
 @end

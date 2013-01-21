@@ -6,9 +6,10 @@
 //  Copyright 2013 Timothy Oliver. All rights reserved.
 //
 
+#import <QuartzCore/QuartzCore.h>
 #import "TOGridViewViewController.h"
 #import "UIDevice+ScreenIdioms.h"
-#import <QuartzCore/QuartzCore.h>
+#import "TOGridViewTestCell.h"
 
 @implementation TOGridViewViewController
 
@@ -31,19 +32,38 @@
 {
     [super viewDidLoad];
 
-	_gridView = [[TOGridView alloc] initWithFrame: self.view.bounds];
+	_gridView = [[TOGridView alloc] initWithFrame: self.view.bounds withCellClass: [TOGridViewTestCell class]];
     _gridView.autoresizingMask = UIViewAutoresizingFlexibleHeight | UIViewAutoresizingFlexibleWidth;
     _gridView.delegate = self;
     _gridView.dataSource = self;
     [self.view addSubview: _gridView]; 
      
-    UIView *backgroundView = [[UIView alloc] initWithFrame: self.view.bounds];
-    backgroundView.backgroundColor = [UIColor scrollViewTexturedBackgroundColor];
-    _gridView.backgroundView = backgroundView;
+    _gridView.backgroundColor = [UIColor colorWithWhite: 0.93f alpha:1.0f];
     
     UIView *headerView = [[UIView alloc] initWithFrame: CGRectMake(0, 0, CGRectGetWidth(self.view.bounds), 150)];
-    headerView.backgroundColor = [UIColor whiteColor];
+    headerView.backgroundColor = [UIColor colorWithWhite:0.87f alpha:1.0f];
     _gridView.headerView = headerView;
+    
+    //Add a label to the header view
+    UILabel *testLabel = [[UILabel alloc] initWithFrame: CGRectMake(0,0,150,44)];
+    testLabel.text = @"Header View";
+    testLabel.autoresizingMask = UIViewAutoresizingFlexibleBottomMargin | UIViewAutoresizingFlexibleTopMargin | UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleRightMargin;
+    testLabel.font = [UIFont boldSystemFontOfSize: 18.0f];
+    testLabel.backgroundColor = [UIColor clearColor];
+    testLabel.textColor = [UIColor colorWithWhite: 0.2f alpha: 1.0f];
+    testLabel.shadowColor = [UIColor whiteColor];
+    testLabel.shadowOffset = CGSizeMake( 0.0f, 1.0f );
+    testLabel.textAlignment = UITextAlignmentCenter;
+    [_gridView.headerView addSubview: testLabel];
+    testLabel.center = _gridView.headerView.center;
+    
+    //add a slight bevel to the bototm of the header
+    UIView *headerBevel = [[UIView alloc] initWithFrame: CGRectMake(0, _gridView.headerView.frame.size.height-1.0f, _gridView.headerView.frame.size.width, 1.0f)];
+    headerBevel.backgroundColor = [UIColor colorWithWhite: 0.8f alpha: 1.0f];
+    headerBevel.autoresizingMask = UIViewAutoresizingFlexibleWidth;
+    [_gridView.headerView addSubview: headerBevel];
+    
+    self.navigationController.navigationBar.tintColor = [UIColor colorWithWhite:0.1f alpha:1.0f];
 }
 
 - (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)interfaceOrientation
@@ -58,7 +78,7 @@
 #pragma mark Delegate
 - (CGSize)innerPaddingForGridView:(TOGridView *)gridView
 {
-    return CGSizeMake(0, 15);
+    return CGSizeZero;
 }
 
 - (CGSize)sizeOfCellsForGridView:(TOGridView *)gridView
@@ -66,20 +86,20 @@
     if( UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad )
     {
         if( UIInterfaceOrientationIsPortrait( self.interfaceOrientation ) )
-            return CGSizeMake(380, 50);
+            return CGSizeMake(384, 100);
         else
-            return CGSizeMake(335, 50);
+            return CGSizeMake(341, 100);
     }
     else
     {
         if( UIInterfaceOrientationIsPortrait( self.interfaceOrientation ) )
-            return CGSizeMake(320, 50);
+            return CGSizeMake(320, 80);
         else
         {
             if( UI_USER_INTERFACE_SCREEN_IDIOM() == UIUserInterfaceScreenIdiomPhone4Inch )
-                return CGSizeMake(282, 50);
+                return CGSizeMake(284, 80);
             else
-                return CGSizeMake(480, 50);
+                return CGSizeMake(480, 80);
         }
     }
 }
@@ -109,7 +129,22 @@
 
 - (NSUInteger)heightOfRowsInGridView:(TOGridView *)gridView
 {
-    return 60;
+    if( UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad )
+        return 100;
+    
+    return 80;
+}
+
+- (void)gridView:(TOGridView *)gridView didTapCellAtIndex:(NSUInteger)index
+{
+    [gridView unhighlightCellAtIndex: index animated: YES];
+    NSLog( @"Cell %d tapped!", index );
+}
+
+- (void)gridView:(TOGridView *)gridView didLongTapCellAtIndex:(NSInteger)index
+{
+    [gridView unhighlightCellAtIndex: index animated: YES];
+    NSLog( @"Cell %d long tapped!", index );
 }
 
 #pragma mark -
@@ -121,7 +156,9 @@
 
 - (TOGridViewCell *)gridView:(TOGridView *)gridView cellForIndex:(NSInteger)cellIndex
 {
-    TOGridViewCell *cell = [_gridView dequeReusableCell];
+    TOGridViewTestCell *cell = (TOGridViewTestCell *)[_gridView dequeReusableCell];
+    
+    cell.textLabel.text = [NSString stringWithFormat: @"Cell %d", cellIndex];
     return cell;
 }
 

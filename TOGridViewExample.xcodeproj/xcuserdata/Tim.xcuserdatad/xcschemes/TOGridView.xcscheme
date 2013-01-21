@@ -82,7 +82,7 @@
             BlueprintIdentifier = "F1CD721916A3DFC6003D5FB8"
             BuildableName = "TOGridView.app"
             BlueprintName = "TOGridView"
-            ReferencedContainer = "container:TOGridView.xcodeproj">
+            ReferencedContainer = "container:TOGridViewExample.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

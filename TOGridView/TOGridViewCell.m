@@ -22,11 +22,13 @@
 
 #import "TOGridViewCell.h"
 #import "TOGridView.h"
+#import <QuartzCore/QuartzCore.h>
+
+#define ANIMATION_TIME 0.5f
 
 @interface TOGridViewCell()
 
 /* Gesture Recognizer Callbacks */
-- (void)cellWasTapped: (UITapGestureRecognizer *)gestureRecognizer;
 - (void)cellWasLongPressed: (UILongPressGestureRecognizer *)gestureRecognizer;
 - (void)cellWasSwiped: (UISwipeGestureRecognizer *)gestureRecognizer;
 
@@ -34,25 +36,28 @@
 
 @implementation TOGridViewCell
 
-@synthesize index = _index, gridView = _gridView, isHighlighted = _isHighlighted, isSelected = _isSelected;
+@synthesize index                       = _index,
+            gridView                    = _gridView,
+            isEditing                   = _isEditing,
+            isHighlighted               = _isHighlighted,
+            isSelected                  = _isSelected,
+            backgroundView              = _backgroundView,
+            highlightedBackgroundView   = _highlightedBackgroundView,
+            selectedBackgroundView      = _selectedBackgroundView
+            ;
 
-- (id)init
+- (id)initWithFrame:(CGRect)frame
 {    
-    if (self = [super init])
+    if (self = [super initWithFrame: frame])
     {
         self.backgroundColor = [UIColor whiteColor];
         
-        _tapGestureRecognizer       = [[UITapGestureRecognizer alloc] initWithTarget:       self action: @selector(cellWasTapped:)];
-        _tapGestureRecognizer.delegate = self;
-        [self addGestureRecognizer: _tapGestureRecognizer];
-        
         _longPressGestureRecognizer = [[UILongPressGestureRecognizer alloc] initWithTarget: self action: @selector(cellWasLongPressed:)];
-        _longPressGestureRecognizer.minimumPressDuration = 1.0f;
+        _longPressGestureRecognizer.minimumPressDuration = 0.5f;
         _longPressGestureRecognizer.delegate = self;
-        [_longPressGestureRecognizer requireGestureRecognizerToFail: _tapGestureRecognizer];
         [self addGestureRecognizer: _longPressGestureRecognizer];
         
-        _swipeGestureRecognizer     = [[UISwipeGestureRecognizer alloc] initWithTarget:     self action: @selector(cellWasSwiped:)];
+        _swipeGestureRecognizer = [[UISwipeGestureRecognizer alloc] initWithTarget: self action: @selector(cellWasSwiped:)];
         _swipeGestureRecognizer.direction = UISwipeGestureRecognizerDirectionLeft;
         _swipeGestureRecognizer.delegate = self;
         [self addGestureRecognizer: _swipeGestureRecognizer];
@@ -68,18 +73,57 @@
 
 - (void)setHighlighted: (BOOL)highlighted animated:(BOOL)animated
 {
+    if( highlighted == _isHighlighted )
+        return;
+    
     _isHighlighted = highlighted;
-
-    if( _isHighlighted )
-        self.backgroundColor = [UIColor redColor];
+    
+    if( animated )
+    {
+        CGFloat alpha;
+        _highlightedBackgroundView.hidden = NO;
+        
+        if( highlighted )
+        {
+            
+            _highlightedBackgroundView.alpha = 0.0f;
+            alpha = 1.0f;
+        }
+        else
+        {
+            _highlightedBackgroundView.alpha = 1.0f;
+            alpha = 0.0f;
+        }
+        
+        [UIView animateWithDuration: ANIMATION_TIME animations: ^{
+            _highlightedBackgroundView.alpha = alpha;
+        }completion: ^(BOOL finished) {
+            if( _isHighlighted == NO )
+                _highlightedBackgroundView.hidden = YES;
+        }];
+    }
     else
-        self.backgroundColor = [UIColor whiteColor];
+    {
+        _highlightedBackgroundView.alpha = 1.0f;
+        
+        if( _isHighlighted )
+            _highlightedBackgroundView.hidden = NO;
+        else
+            _highlightedBackgroundView.hidden = YES;
+    }
+}
+
+- (void)setSelected:(BOOL)selected animated:(BOOL)animated
+{
+    
 }
 
 #pragma mark -
 #pragma mark Manual Touch Events
 - (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event
 {
+    [super touchesBegan: touches withEvent: event];
+    
     if( _gridView.highlightedCellIndex < 0 )
     {
         [self setHighlighted: YES animated: NO];
@@ -87,9 +131,19 @@
     }
 }
 
+- (void)touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event
+{
+    [super touchesEnded: touches withEvent: event];
+    
+    if( [_gridView.delegate respondsToSelector: @selector(gridView:didTapCellAtIndex:)] )
+        [_gridView.delegate gridView: _gridView didTapCellAtIndex: _index];
+}
+
 - (void)touchesCancelled:(NSSet *)touches withEvent:(UIEvent *)event
 {
-    [self setHighlighted: NO animated: YES];
+    [super touchesCancelled: touches withEvent: event];
+    
+    [self setHighlighted: NO animated: NO];
     _gridView.highlightedCellIndex = -1;
 }
 
@@ -97,33 +151,97 @@
 #pragma mark Touch Delegate events
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch
 {
-    if( gestureRecognizer == _tapGestureRecognizer && _gridView.highlightedCellIndex >= 0 )
-        return NO;
-    
-    if( gestureRecognizer == _longPressGestureRecognizer && [_gridView.dataSource respondsToSelector: @selector(gridView:didLongTapCellAtIndex:)] == NO)
+    //Don't perform the long tap gesture if there isn't a delegate method to apply it to
+    if( gestureRecognizer == _longPressGestureRecognizer && [_gridView.delegate respondsToSelector: @selector(gridView:didLongTapCellAtIndex:)] == NO)
         return NO;                                                                                                                                                                                                                                         
+    
+    if( gestureRecognizer == _swipeGestureRecognizer )
+    {
+        return NO;
+    }
     
     return YES;
 }
 
 #pragma mark -
 #pragma mark Touch Callbacks
-- (void)cellWasTapped:(UITapGestureRecognizer *)gestureRecognizer
-{
-    NSLog( @"Tapped!");
-}
-
 - (void)cellWasLongPressed:(UILongPressGestureRecognizer *)gestureRecognizer
 {
     if( gestureRecognizer.state != UIGestureRecognizerStateBegan )
         return;
     
-    NSLog( @"Long Tapped %@", gestureRecognizer );
+   if( [_gridView.delegate respondsToSelector: @selector(gridView:didLongTapCellAtIndex:)])
+       [_gridView.delegate gridView: _gridView didLongTapCellAtIndex: _index];
 }
 
 - (void)cellWasSwiped:(UISwipeGestureRecognizer *)gestureRecognizer
 {
-    NSLog( @"Swiped Tapped" );
+    
+}
+
+#pragma mark -
+#pragma mark Accessor Methods
+- (UIView *)contentView
+{
+    if( _contentView == nil )
+    {
+        _contentView = [[UIView alloc] initWithFrame: self.bounds];
+        _contentView.autoresizingMask = UIViewAutoresizingFlexibleHeight | UIViewAutoresizingFlexibleWidth;
+        _contentView.backgroundColor = [UIColor clearColor];
+        
+        [self addSubview: _contentView];
+    }
+    
+    return _contentView;
+}
+
+- (void)setBackgroundView:(UIView *)backgroundView
+{
+    if( _backgroundView && _backgroundView == backgroundView )
+        return;
+    
+    [_backgroundView removeFromSuperview];
+    _backgroundView = backgroundView;
+    _backgroundView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    _backgroundView.frame = self.bounds;
+    
+    [self insertSubview: _backgroundView atIndex: 0];
+}
+
+- (void)setHighlightedBackgroundView:(UIView *)highlightedBackgroundView
+{
+    if( _highlightedBackgroundView && _highlightedBackgroundView == highlightedBackgroundView)
+        return;
+    
+    [_highlightedBackgroundView removeFromSuperview];
+    _highlightedBackgroundView = highlightedBackgroundView;
+    _highlightedBackgroundView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    _highlightedBackgroundView.frame = self.bounds;
+    
+    if( _backgroundView )
+        [self insertSubview: _highlightedBackgroundView aboveSubview: _backgroundView ];
+    else
+        [self insertSubview: _highlightedBackgroundView atIndex: 0 ];
+    
+    _highlightedBackgroundView.hidden = YES;
+}
+
+- (void)setSelectedBackgroundView:(UIView *)selectedBackgroundView
+{
+    if( _selectedBackgroundView && _selectedBackgroundView == selectedBackgroundView)
+        return;
+    
+    [_selectedBackgroundView removeFromSuperview];
+    _selectedBackgroundView = selectedBackgroundView;
+    _selectedBackgroundView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    _selectedBackgroundView.frame = self.bounds;
+    
+    if( _backgroundView )
+        [self insertSubview: _selectedBackgroundView aboveSubview: _backgroundView ];
+    else
+        [self insertSubview: _selectedBackgroundView atIndex: 0 ];
+    
+    _selectedBackgroundView.hidden = YES;
 }
 
 @end
