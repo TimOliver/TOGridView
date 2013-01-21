@@ -93,13 +93,13 @@
     else
     {
         if( UIInterfaceOrientationIsPortrait( self.interfaceOrientation ) )
-            return CGSizeMake(320, 80);
+            return CGSizeMake(320, 70);
         else
         {
             if( UI_USER_INTERFACE_SCREEN_IDIOM() == UIUserInterfaceScreenIdiomPhone4Inch )
-                return CGSizeMake(284, 80);
+                return CGSizeMake(284, 70);
             else
-                return CGSizeMake(480, 80);
+                return CGSizeMake(480, 70);
         }
     }
 }
@@ -132,7 +132,7 @@
     if( UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad )
         return 100;
     
-    return 80;
+    return 70;
 }
 
 - (void)gridView:(TOGridView *)gridView didTapCellAtIndex:(NSUInteger)index

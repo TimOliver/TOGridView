@@ -319,6 +319,17 @@
 {
     [super layoutSubviews];
     
+    /* 
+     Bit of a sneaky hack here. We've got two interesting scenarios happening:
+     The first-gen iPad has a slow GPU (meaning lots of blending is chuggy), but can bake views to UIImage REALLY fast (presumably because the views are non-Retina)
+     The third-gen iPad has a kickass GPU (meaning tonnes of blending is easy), but its CPU (While faster than the iPad 1), has to cope withe rendering retina UIImages.
+     
+     In order to get optimal render time+animation on both platforms, the following is happening:
+     - On non-Retina devices, the before and after bitmaps are rendered and the cells are hidden throughout the animation (Only 1 alpha blend is happening, so iPad 1 is happy)
+     - On Retina devices, only the first bitmap is rendered, which is then cross-faded with the live cells (The iPad 3 can handle manually blending multiple cells, iPad 1 cannot)
+    */
+    BOOL isRetinaDevice = [[UIScreen mainScreen] scale] > 1.0f;
+    
     /* The ImageViews to store the before and after snapshots */
     __block UIImageView *_beforeSnapshot, *_afterSnapshot;
     
@@ -368,32 +379,39 @@
     {
         CGFloat duration = boundsAnimation.duration;
         
-        //Bake the 'after' snapshot to the second imageView 
-        CGRect afterRect = self.bounds;
-        _afterSnapshot = [[UIImageView alloc] initWithImage: [self snapshotOfCellsInRect: afterRect]];
-        
-        //Set up the positions of both image views
+        //Bake the 'after' snapshot to the second imageView
+        if( !isRetinaDevice )
+        {
+            _afterSnapshot = [[UIImageView alloc] initWithImage: [self snapshotOfCellsInRect: self.bounds]];
+            _afterSnapshot.frame = CGRectMake( CGRectGetMinX(self.frame), CGRectGetMinY(self.frame), CGRectGetWidth(self.bounds), CGRectGetHeight(self.bounds));
+            [_afterSnapshot.layer removeAllAnimations];
+        }
+            
         _beforeSnapshot.frame = CGRectMake( CGRectGetMinX(self.frame), CGRectGetMinY(self.frame), CGRectGetWidth(_beforeSnapshot.frame), CGRectGetHeight(_beforeSnapshot.frame));
-        _afterSnapshot.frame = CGRectMake( CGRectGetMinX(self.frame), CGRectGetMinY(self.frame), CGRectGetWidth(self.bounds), CGRectGetHeight(self.bounds));
         
         //remove any possible animations that may have been applied to these views in here
         [_beforeSnapshot.layer removeAllAnimations];        
-        [_afterSnapshot.layer removeAllAnimations];
         
         //Hide all of the visible cells
         for( TOGridViewCell *cell in _visibleCells )
         {
-            cell.hidden = YES;
             [cell.layer removeAllAnimations];
+            
+            if( !isRetinaDevice )
+                cell.hidden = YES;
+            else
+                cell.alpha = 0.0f;
         }
         
         //place these snapshots outside the scrollview, otherwise they'll move during animation
-        //TODO: Maybe try and find a way to keep these snapshots within the view itself.
         [self.superview insertSubview: _beforeSnapshot aboveSubview: self];
-        [self.superview insertSubview: _afterSnapshot aboveSubview: _beforeSnapshot];
-        
-        _afterSnapshot.alpha    = 0.0f;
         _beforeSnapshot.alpha   = 1.0f;
+        
+        if( !isRetinaDevice )
+        {
+            [self.superview insertSubview: _afterSnapshot aboveSubview: _beforeSnapshot];
+            _afterSnapshot.alpha    = 0.0f;
+        }
         
         //perform the crossfade animation
         [UIView animateWithDuration: duration
@@ -403,17 +421,34 @@
         ^{
             /* Crossfade both views */
             _beforeSnapshot.alpha = 0.0f;
-            _afterSnapshot.alpha = 1.0f;
+            
+            if( !isRetinaDevice )
+            {
+                _afterSnapshot.alpha = 1.0f;
+            }
+            else
+            {
+                for( TOGridViewCell *cell in _visibleCells )
+                    cell.alpha = 1.0f;
+            }
         }
         completion: ^(BOOL complete)
         {
             /* Once finished, clean up the image views */
-            [_afterSnapshot removeFromSuperview];   _afterSnapshot  = nil;
+            if( !isRetinaDevice )
+            {
+                [_afterSnapshot removeFromSuperview];
+                _afterSnapshot  = nil;
+            }
+                
             [_beforeSnapshot removeFromSuperview];  _beforeSnapshot = nil;
             
             //Unhide all of the cells
             for( TOGridViewCell *cell in _visibleCells )
+            {
                 cell.hidden = NO;
+                cell.alpha = 1.0f;
+            }
             
             //re-enable user interaction
             self.userInteractionEnabled = YES;
@@ -430,12 +465,7 @@
 {
     UIImage *image = nil;
     
-    /* 
-     The graphics context is being created with a screen scale of 1.0 (eg non-Retina)
-     The reason for this is the iPad 3rd gen takes a fair amount of time to render out each snapshot at Retina resolutions (Slower than an iPad 1!).
-     And really, given how quickly the crossfade occurs, it's doubtful anyone will notice.
-    */
-    UIGraphicsBeginImageContextWithOptions( rect.size, NO, 1.0f );
+    UIGraphicsBeginImageContextWithOptions( rect.size, NO, 0.0f );
     {
         CGContextRef context = UIGraphicsGetCurrentContext();
         
