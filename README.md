@@ -15,7 +15,7 @@ and open-sourcing it on GitHub.
 
 ## ANOTHER collection view? You know other people, including Apple have already done this right?
 
-Yeah... I realise this. And believe me, I loathe and despise having to reinvent the wheel. ^_^; 
+Yeah... I realise this. And believe me, I love reinventing the wheel as much as the next guy. ^_^; 
 However, after doing TONNES of research into the matter, including researching UICollectionView as well as
 several of the open-source collection/grid views on GitHub, I eventually came to the conclusion that it would be best for iComics if I wrote my own.
 
