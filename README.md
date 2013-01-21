@@ -1,7 +1,7 @@
 # TOGridView 
 #### A light and easy collection view for iOS; compatible with iOS 5 and above.
 
-![TOGridView on iPad in Portrait](https://raw.github.com/TimOliver/TOGridView/master/Screenshots/iPad_Portrait_t.jpg)
+![TOGridView on iPad in Portrait](https://raw.github.com/TimOliver/TOGridView/master/Screenshots/iPad_Portrait_t.jpg) 
 ![TOGridView on iPad in Landscape](https://raw.github.com/TimOliver/TOGridView/master/Screenshots/iPad_Landscape_t.jpg)
 
 ## WTF is this thing?
