@@ -38,9 +38,9 @@
 
 @synthesize index                       = _index,
             gridView                    = _gridView,
-            isEditing                   = _isEditing,
-            isHighlighted               = _isHighlighted,
-            isSelected                  = _isSelected,
+            editing                   = _isEditing,
+            highlighted               = _isHighlighted,
+            selected                  = _isSelected,
             backgroundView              = _backgroundView,
             highlightedBackgroundView   = _highlightedBackgroundView,
             selectedBackgroundView      = _selectedBackgroundView
@@ -85,7 +85,6 @@
         
         if( highlighted )
         {
-            
             _highlightedBackgroundView.alpha = 0.0f;
             alpha = 1.0f;
         }
@@ -95,11 +94,17 @@
             alpha = 0.0f;
         }
         
+        [self setHighlighted: !_isHighlighted];
         [UIView animateWithDuration: ANIMATION_TIME animations: ^{
             _highlightedBackgroundView.alpha = alpha;
-        }completion: ^(BOOL finished) {
+        }
+        completion: ^(BOOL finished)
+        {
+            [self setHighlighted: _isHighlighted];
+            
             if( _isHighlighted == NO )
                 _highlightedBackgroundView.hidden = YES;
+    
         }];
     }
     else
@@ -110,6 +115,8 @@
             _highlightedBackgroundView.hidden = NO;
         else
             _highlightedBackgroundView.hidden = YES;
+        
+        [self setHighlighted: _isHighlighted];
     }
 }
 

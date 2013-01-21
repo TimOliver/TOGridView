@@ -45,9 +45,9 @@
 @property (nonatomic, assign)   NSUInteger index;
 @property (nonatomic, weak)     TOGridView *gridView;
 
-@property (nonatomic, assign)   BOOL isEditing;
-@property (nonatomic, assign)   BOOL isSelected;
-@property (nonatomic, assign)   BOOL isHighlighted;
+@property (nonatomic, assign)   BOOL editing;
+@property (nonatomic, assign)   BOOL selected;
+@property (nonatomic, assign)   BOOL highlighted;
 
 /* Views for various states that are placed in the background */
 @property (nonatomic, strong)   UIView *backgroundView;

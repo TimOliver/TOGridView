@@ -26,11 +26,21 @@
         _textLabel.textColor = [UIColor colorWithWhite: 0.2f alpha: 1.0f];
         _textLabel.backgroundColor = [UIColor colorWithWhite: 0.96f alpha: 1.0f];
         _textLabel.font = [UIFont boldSystemFontOfSize: 19.0f];
+        _textLabel.shadowColor = [UIColor whiteColor];
+        _textLabel.shadowOffset = CGSizeMake( 0, 1.0f);
         
         [self.contentView addSubview: _textLabel];
     }
     
     return self;
+}
+
+- (void)setHighlighted:(BOOL)highlighted
+{
+    if( highlighted )
+        _textLabel.backgroundColor = [UIColor clearColor];
+    else
+        _textLabel.backgroundColor = [UIColor colorWithWhite: 0.96f alpha: 1.0f];
 }
 
 @end
