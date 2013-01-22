@@ -21,6 +21,7 @@
 //  IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #import <Foundation/Foundation.h>
+#import <QuartzCore/QuartzCore.h>
 
 @class TOGridView;
 @class TOGridViewCell;
@@ -48,6 +49,8 @@
 - (void)gridView: (TOGridView *)gridView didLongTapCellAtIndex: (NSInteger)index;
 
 @end
+
+
 
 @interface TOGridView : UIScrollView {
     /* The class that is used to spawn cells */
@@ -93,6 +96,9 @@
     /* Only one cell can ever be highlighted at once. This tracks that state */
     NSInteger _highlightedCellIndex;
     
+    /* The ImageViews to store the before and after snapshots */
+    UIImageView *_beforeSnapshot, *_afterSnapshot;
+    
     struct {
         unsigned int dataSourceNumberOfCells;
         unsigned int dataSourceCellForIndex;
@@ -135,9 +141,14 @@
 /* Unhighlight a cell after it had been tapped */
 - (void)unhighlightCellAtIndex: (NSInteger)index animated: (BOOL)animated;
 
-
-
 /* Reload the entire table */
 - (void)reloadGrid;
+
+@end
+
+
+@interface TOGridView (CAAnimationDelegate)
+
+- (void)animationDidStop:(CAAnimation *)anim finished:(BOOL)flag;
 
 @end

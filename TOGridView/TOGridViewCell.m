@@ -72,6 +72,11 @@
     
 }
 
+- (void)setHidden:(BOOL)hidden
+{
+    [super setHidden: hidden];
+}
+
 - (void)setHighlighted: (BOOL)highlighted animated:(BOOL)animated
 {
     if( highlighted == _isHighlighted )

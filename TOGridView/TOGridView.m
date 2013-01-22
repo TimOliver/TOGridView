@@ -330,9 +330,6 @@
     */
     BOOL isRetinaDevice = [[UIScreen mainScreen] scale] > 1.0f;
     
-    /* The ImageViews to store the before and after snapshots */
-    __block UIImageView *_beforeSnapshot, *_afterSnapshot;
-    
     /* Apply the crossfade effect if this method is being called while there is a pending 'bounds' animation present. */
     /* Capture the 'before' state to UIImageView before we reposition all of the cells */
     CABasicAnimation *boundsAnimation = (CABasicAnimation *)[self.layer animationForKey: @"bounds"];
@@ -391,18 +388,20 @@
         CGRect beforeRect = [boundsAnimation.fromValue CGRectValue];
         beforeRect.origin.y = self.bounds.origin.y; //set the before and after scrolloffsets to the same value
         boundsAnimation.fromValue = [NSValue valueWithCGRect: beforeRect];
+        boundsAnimation.delegate = self;
+        boundsAnimation.removedOnCompletion = YES;
         [self.layer addAnimation: boundsAnimation forKey: @"bounds"];
         
         //Bake the 'after' snapshot to the second imageView (only if we're a non-retina device) and get it ready for display
         if( !isRetinaDevice )
         {
             _afterSnapshot = [[UIImageView alloc] initWithImage: [self snapshotOfCellsInRect: self.bounds]];
-            _afterSnapshot.frame = CGRectMake( 0, self.bounds.origin.y, CGRectGetWidth(self.bounds), CGRectGetHeight(self.bounds));
+            _afterSnapshot.frame = CGRectMake( CGRectGetMinX(self.frame), CGRectGetMinY(self.frame), CGRectGetWidth(self.bounds), CGRectGetHeight(self.bounds));
             [_afterSnapshot.layer removeAllAnimations];
         }
         
         //Get the 'before' snapshot ready
-        _beforeSnapshot.frame = CGRectMake( 0, self.bounds.origin.y, CGRectGetWidth(_beforeSnapshot.frame), CGRectGetHeight(_beforeSnapshot.frame));
+        _beforeSnapshot.frame = CGRectMake( CGRectGetMinX(self.frame), CGRectGetMinY(self.frame), CGRectGetWidth(_beforeSnapshot.frame), CGRectGetHeight(_beforeSnapshot.frame));
         [_beforeSnapshot.layer removeAllAnimations];        
         
         for( TOGridViewCell *cell in _visibleCells )
@@ -415,64 +414,62 @@
             
             //If we're animating between 2 snapshots, just hide the cells (MASSIVE performance boost on iPad 1)
             if( !isRetinaDevice )
+            {
                 cell.hidden = YES; //Hide all of the visible cells
+            }
             else
-                cell.alpha = 0.0f;
+            {
+                //Apply a CABasicAnimation to each cell to animate it
+                CABasicAnimation *opacity   = [CABasicAnimation animationWithKeyPath: @"opacity"];
+                opacity.fromValue           = [NSNumber numberWithFloat: 0.0f];
+                opacity.toValue             = [NSNumber numberWithFloat: 1.0f];
+                opacity.duration            = boundsAnimation.duration;
+                [cell.layer addAnimation: opacity forKey: @"opacity"];
+            }
         }
         
         //add the 'before' snapshot
-        [self addSubview: _beforeSnapshot];
-        _beforeSnapshot.alpha   = 1.0f;
+        [self.superview insertSubview: _beforeSnapshot aboveSubview: self];
+        CABasicAnimation *opacity   = [CABasicAnimation animationWithKeyPath: @"opacity"];
+        opacity.fromValue           = [NSNumber numberWithFloat: 1.0f];
+        opacity.toValue             = [NSNumber numberWithFloat: 0.0f];
+        opacity.duration            = boundsAnimation.duration;
+        [_beforeSnapshot.layer addAnimation: opacity forKey: @"opacity"];
         
         //add the 'after' snapshot
         if( !isRetinaDevice )
         {
-            [self insertSubview: _afterSnapshot aboveSubview: _beforeSnapshot];
-            _afterSnapshot.alpha    = 0.0f;
+            [self.superview insertSubview: _afterSnapshot aboveSubview: _beforeSnapshot];
+            
+            opacity   = [CABasicAnimation animationWithKeyPath: @"opacity"];
+            opacity.fromValue           = [NSNumber numberWithFloat: 0.0f];
+            opacity.toValue             = [NSNumber numberWithFloat: 1.0f];
+            opacity.duration            = boundsAnimation.duration;
+            [_afterSnapshot.layer addAnimation: opacity forKey: @"opacity"];
         }
-        
-        //perform the crossfade animation
-        [UIView animateWithDuration: (NSTimeInterval)boundsAnimation.duration
-                              delay: 0.0f
-                            options: UIViewAnimationCurveEaseInOut
-                         animations:
-        ^{
-            /* Crossfade before views */
-            _beforeSnapshot.alpha = 0.0f;
-            
-            /* Crossfade pre-baked after view if non-Retina */
-            if( !isRetinaDevice )
-            {
-                _afterSnapshot.alpha = 1.0f;
-            }
-            else
-            {
-                /* If Retina, just alpha fade the live cells back in */
-                for( TOGridViewCell *cell in _visibleCells )
-                    cell.alpha = 1.0f;
-            }
-        }
-        completion: ^(BOOL complete)
-        {
-            /* Once finished, clean up the image views */
-            if( !isRetinaDevice ) { [_afterSnapshot removeFromSuperview]; _afterSnapshot  = nil; }
-            [_beforeSnapshot removeFromSuperview];  _beforeSnapshot = nil;
-            
-            /* Restore the state of the cells back to default */
-            for( TOGridViewCell *cell in _visibleCells )
-            {
-                cell.hidden = NO;
-                cell.alpha = 1.0f;
-            }
-            
-            //re-enable user interaction
-            self.userInteractionEnabled = YES;
-        }];
     }
     
     /* Update the background view to stay in the background */
     if( _backgroundView )
         _backgroundView.frame = CGRectMake( 0, self.bounds.origin.y, CGRectGetWidth(_backgroundView.bounds), CGRectGetHeight(_backgroundView.bounds));
+}
+
+/* CAAnimation Delegate */
+- (void)animationDidStop:(CAAnimation *)anim finished:(BOOL)flag
+{
+    if( flag == NO )
+        return;
+    
+    if( _beforeSnapshot ) { [_beforeSnapshot removeFromSuperview]; _beforeSnapshot = nil; }
+    if( _afterSnapshot ) { [_afterSnapshot removeFromSuperview]; _afterSnapshot = nil; }
+    
+    for( TOGridViewCell *cell in _visibleCells )
+    {
+        cell.hidden = NO;
+        cell.alpha = 1.0f;
+    }
+    
+    self.userInteractionEnabled = YES;
 }
 
 /* Returns a UIImage of all of the visible cells on screen baked into it. */
@@ -640,6 +637,7 @@
         [self invalidateVisibleCells];
         [self resetCellMetrics];
     }
+    
 }
 
 

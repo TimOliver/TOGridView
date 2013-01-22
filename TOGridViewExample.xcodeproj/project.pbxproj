@@ -13,6 +13,7 @@
 		226C94B616ABB96D007650CD /* TOGridViewAppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 226C94B316ABB96D007650CD /* TOGridViewAppDelegate.m */; };
 		226C94B716ABB96D007650CD /* TOGridViewViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 226C94B516ABB96D007650CD /* TOGridViewViewController.m */; };
 		226C94BB16ABB99C007650CD /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 226C94B816ABB99C007650CD /* main.m */; };
+		2298299516AEBC9F00B7537D /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2298299416AEBC9F00B7537D /* QuartzCore.framework */; };
 		229ED8E916ABBAB7003EDDF6 /* UIDevice+ScreenIdioms.m in Sources */ = {isa = PBXBuildFile; fileRef = 229ED8E816ABBAB7003EDDF6 /* UIDevice+ScreenIdioms.m */; };
 		22DE351716ACF20D0081E9C2 /* CellBG.png in Resources */ = {isa = PBXBuildFile; fileRef = 22DE351616ACF20D0081E9C2 /* CellBG.png */; };
 		22DE351C16ACF2E80081E9C2 /* CellBG@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 22DE351A16ACF2E80081E9C2 /* CellBG@2x.png */; };
@@ -37,6 +38,7 @@
 		226C94B816ABB99C007650CD /* main.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = main.m; path = Example/main.m; sourceTree = SOURCE_ROOT; };
 		226C94B916ABB99C007650CD /* TOGridView-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = "TOGridView-Info.plist"; path = "Example/TOGridView-Info.plist"; sourceTree = SOURCE_ROOT; };
 		226C94BA16ABB99C007650CD /* TOGridView-Prefix.pch */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "TOGridView-Prefix.pch"; path = "Example/TOGridView-Prefix.pch"; sourceTree = SOURCE_ROOT; };
+		2298299416AEBC9F00B7537D /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
 		229ED8E716ABBAB7003EDDF6 /* UIDevice+ScreenIdioms.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "UIDevice+ScreenIdioms.h"; path = "Example/Categories/UIDevice+ScreenIdioms.h"; sourceTree = SOURCE_ROOT; };
 		229ED8E816ABBAB7003EDDF6 /* UIDevice+ScreenIdioms.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = "UIDevice+ScreenIdioms.m"; path = "Example/Categories/UIDevice+ScreenIdioms.m"; sourceTree = SOURCE_ROOT; };
 		22DE351616ACF20D0081E9C2 /* CellBG.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = CellBG.png; sourceTree = "<group>"; };
@@ -56,6 +58,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2298299516AEBC9F00B7537D /* QuartzCore.framework in Frameworks */,
 				F1CD721F16A3DFC6003D5FB8 /* UIKit.framework in Frameworks */,
 				F1CD722116A3DFC6003D5FB8 /* Foundation.framework in Frameworks */,
 				F1CD722316A3DFC6003D5FB8 /* CoreGraphics.framework in Frameworks */,
@@ -100,6 +103,7 @@
 		F1CD720F16A3DFC6003D5FB8 = {
 			isa = PBXGroup;
 			children = (
+				2298299416AEBC9F00B7537D /* QuartzCore.framework */,
 				226C94A816ABB954007650CD /* Default-568h@2x.png */,
 				F1CD722416A3DFC6003D5FB8 /* TOGridView */,
 				F1CD721D16A3DFC6003D5FB8 /* Frameworks */,
