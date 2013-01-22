@@ -51,6 +51,7 @@
     if (self = [super initWithFrame: frame])
     {
         self.backgroundColor = [UIColor whiteColor];
+        self.autoresizesSubviews = YES;
         
         _longPressGestureRecognizer = [[UILongPressGestureRecognizer alloc] initWithTarget: self action: @selector(cellWasLongPressed:)];
         _longPressGestureRecognizer.minimumPressDuration = 0.5f;

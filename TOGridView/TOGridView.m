@@ -322,11 +322,11 @@
     /* 
      Bit of a sneaky hack here. We've got two interesting scenarios happening:
      The first-gen iPad has a slow GPU (meaning lots of blending is chuggy), but can bake views to UIImage REALLY fast (presumably because the views are non-Retina)
-     The third-gen iPad has a kickass GPU (meaning tonnes of blending is easy), but its CPU (While faster than the iPad 1), has to cope withe rendering retina UIImages.
+     The third-gen iPad has a kickass GPU (meaning tonnes of blending is easy), but its CPU (While faster than the iPad 1), has to cope with rendering retina UIImages.
      
      In order to get optimal render time+animation on both platforms, the following is happening:
      - On non-Retina devices, the before and after bitmaps are rendered and the cells are hidden throughout the animation (Only 1 alpha blend is happening, so iPad 1 is happy)
-     - On Retina devices, only the first bitmap is rendered, which is then cross-faded with the live cells (The iPad 3 can handle manually blending multiple cells, iPad 1 cannot)
+     - On Retina devices, only the first bitmap is rendered, which is then cross-faded with the live cells (The iPad 3 can handle manually blending multiple cells, but iPad 1 cannot without a serious FPS hit)
     */
     BOOL isRetinaDevice = [[UIScreen mainScreen] scale] > 1.0f;
     
@@ -338,6 +338,11 @@
     CABasicAnimation *boundsAnimation = (CABasicAnimation *)[self.layer animationForKey: @"bounds"];
     if( boundsAnimation )
     {
+        //make a mutable copy of the bounds animation,
+        //as we will need to change the 'from' state in a little while
+        boundsAnimation = [boundsAnimation mutableCopy];
+        [self.layer removeAnimationForKey: @"bounds"];
+        
         //disable user interaction
         self.userInteractionEnabled = NO;
         
@@ -350,7 +355,7 @@
                 [self setContentOffset: CGPointZero animated: NO];
             else if ( contentOffset.y > self.contentSize.height - CGRectGetHeight(self.bounds) ) // reset if rubber-banding at the bottom
                 [self setContentOffset: CGPointMake( 0, self.contentSize.height - CGRectGetHeight(self.bounds) ) animated: NO];
-            else
+            else //just halt it where-ever it is right now.
                 [self setContentOffset: contentOffset animated: NO];
         }
         
@@ -360,10 +365,11 @@
         _beforeSnapshot = [[UIImageView alloc] initWithImage: [self snapshotOfCellsInRect: beforeRect]];
         
         //poll the delegate again to see if anything needs changing since the bounds have changed
+        //(Also, by this point, [UIViewController interfaceOrientation] has updated to the new orientation too)
         [self resetCellMetrics];
         
         //manually set contentOffset's value based off bounds.
-        //Not sure why, but if we don't do this, periodically, contentOffset resets to [0,0] and borks the animation :S
+        //Not sure why, but if we don't do this, periodically, contentOffset resets to [0,0] (possibly as a result of the frame changing) and borks the animation :S
         if( self.contentSize.height - self.bounds.size.height >= beforeRect.origin.y )
             self.contentOffset = beforeRect.origin;
         
@@ -377,57 +383,71 @@
     //set up the second half of the animation crossfade and then start the crossfade animation
     if( boundsAnimation )
     {
-        CGFloat duration = boundsAnimation.duration;
+        /*
+            "bounds" stores the scroll offset in its 'origin' property, and the actual size of the view in the 'size' property.
+            Since we DO want the view to animate resizing itself, but we DON'T want it to animate scrolling at the same time, we'll have
+            to modify the animation properties (which is why we made a mutable copy above) and then re-insert it back in.
+        */
+        CGRect beforeRect = [boundsAnimation.fromValue CGRectValue];
+        beforeRect.origin.y = self.bounds.origin.y; //set the before and after scrolloffsets to the same value
+        boundsAnimation.fromValue = [NSValue valueWithCGRect: beforeRect];
+        [self.layer addAnimation: boundsAnimation forKey: @"bounds"];
         
-        //Bake the 'after' snapshot to the second imageView
+        //Bake the 'after' snapshot to the second imageView (only if we're a non-retina device) and get it ready for display
         if( !isRetinaDevice )
         {
             _afterSnapshot = [[UIImageView alloc] initWithImage: [self snapshotOfCellsInRect: self.bounds]];
-            _afterSnapshot.frame = CGRectMake( CGRectGetMinX(self.frame), CGRectGetMinY(self.frame), CGRectGetWidth(self.bounds), CGRectGetHeight(self.bounds));
+            _afterSnapshot.frame = CGRectMake( 0, self.bounds.origin.y, CGRectGetWidth(self.bounds), CGRectGetHeight(self.bounds));
             [_afterSnapshot.layer removeAllAnimations];
         }
-            
-        _beforeSnapshot.frame = CGRectMake( CGRectGetMinX(self.frame), CGRectGetMinY(self.frame), CGRectGetWidth(_beforeSnapshot.frame), CGRectGetHeight(_beforeSnapshot.frame));
         
-        //remove any possible animations that may have been applied to these views in here
+        //Get the 'before' snapshot ready
+        _beforeSnapshot.frame = CGRectMake( 0, self.bounds.origin.y, CGRectGetWidth(_beforeSnapshot.frame), CGRectGetHeight(_beforeSnapshot.frame));
         [_beforeSnapshot.layer removeAllAnimations];        
         
-        //Hide all of the visible cells
         for( TOGridViewCell *cell in _visibleCells )
         {
+            //disable EVERY ANIMATION that may have been applied to each cell and its sub-cells in the interim.
+            //(This includes content, background, and highlight views)
             [cell.layer removeAllAnimations];
+            for( UIView *subview in cell.subviews )
+                [subview.layer removeAllAnimations];
             
+            //If we're animating between 2 snapshots, just hide the cells (MASSIVE performance boost on iPad 1)
             if( !isRetinaDevice )
-                cell.hidden = YES;
+                cell.hidden = YES; //Hide all of the visible cells
             else
                 cell.alpha = 0.0f;
         }
         
-        //place these snapshots outside the scrollview, otherwise they'll move during animation
-        [self.superview insertSubview: _beforeSnapshot aboveSubview: self];
+        //add the 'before' snapshot
+        [self addSubview: _beforeSnapshot];
         _beforeSnapshot.alpha   = 1.0f;
         
+        //add the 'after' snapshot
         if( !isRetinaDevice )
         {
-            [self.superview insertSubview: _afterSnapshot aboveSubview: _beforeSnapshot];
+            [self insertSubview: _afterSnapshot aboveSubview: _beforeSnapshot];
             _afterSnapshot.alpha    = 0.0f;
         }
         
         //perform the crossfade animation
-        [UIView animateWithDuration: duration
+        [UIView animateWithDuration: (NSTimeInterval)boundsAnimation.duration
                               delay: 0.0f
                             options: UIViewAnimationCurveEaseInOut
                          animations:
         ^{
-            /* Crossfade both views */
+            /* Crossfade before views */
             _beforeSnapshot.alpha = 0.0f;
             
+            /* Crossfade pre-baked after view if non-Retina */
             if( !isRetinaDevice )
             {
                 _afterSnapshot.alpha = 1.0f;
             }
             else
             {
+                /* If Retina, just alpha fade the live cells back in */
                 for( TOGridViewCell *cell in _visibleCells )
                     cell.alpha = 1.0f;
             }
@@ -435,15 +455,10 @@
         completion: ^(BOOL complete)
         {
             /* Once finished, clean up the image views */
-            if( !isRetinaDevice )
-            {
-                [_afterSnapshot removeFromSuperview];
-                _afterSnapshot  = nil;
-            }
-                
+            if( !isRetinaDevice ) { [_afterSnapshot removeFromSuperview]; _afterSnapshot  = nil; }
             [_beforeSnapshot removeFromSuperview];  _beforeSnapshot = nil;
             
-            //Unhide all of the cells
+            /* Restore the state of the cells back to default */
             for( TOGridViewCell *cell in _visibleCells )
             {
                 cell.hidden = NO;
@@ -467,7 +482,7 @@
     
     /* 
      Testing rendering the context, locked to non-Retina. Even if the iPad 3 only has to render one Retina bitmap,
-     there's still a lot of latency. And when the view is rotating, you can't even really see the Retina graphics.
+     there's still a lot of noticable latency. And when the view is rotating, you can't even really see the Retina graphics.
      */
     UIGraphicsBeginImageContextWithOptions( rect.size, NO, 1.0f );
     {

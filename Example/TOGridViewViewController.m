@@ -39,6 +39,7 @@
     [self.view addSubview: _gridView]; 
      
     _gridView.backgroundColor = [UIColor colorWithWhite: 0.93f alpha:1.0f];
+    //_gridView.backgroundColor = [UIColor blackColor];
     
     UIView *headerView = [[UIView alloc] initWithFrame: CGRectMake(0, 0, CGRectGetWidth(self.view.bounds), 150)];
     headerView.backgroundColor = [UIColor colorWithWhite:0.87f alpha:1.0f];
@@ -151,7 +152,7 @@
 #pragma mark Data Source
 - (NSUInteger)numberOfCellsInGridView:(TOGridView *)gridView
 {
-    return 80;
+    return 65;
 }
 
 - (TOGridViewCell *)gridView:(TOGridView *)gridView cellForIndex:(NSInteger)cellIndex
