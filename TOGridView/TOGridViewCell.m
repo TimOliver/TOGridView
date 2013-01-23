@@ -24,7 +24,7 @@
 #import "TOGridView.h"
 #import <QuartzCore/QuartzCore.h>
 
-#define ANIMATION_TIME 0.5f
+#define ANIMATION_TIME 0.7f
 
 @interface TOGridViewCell()
 
@@ -38,9 +38,9 @@
 
 @synthesize index                       = _index,
             gridView                    = _gridView,
-            editing                   = _isEditing,
-            highlighted               = _isHighlighted,
-            selected                  = _isSelected,
+            editing                     = _isEditing,
+            highlighted                 = _isHighlighted,
+            selected                    = _isSelected,
             backgroundView              = _backgroundView,
             highlightedBackgroundView   = _highlightedBackgroundView,
             selectedBackgroundView      = _selectedBackgroundView
@@ -52,6 +52,7 @@
     {
         self.backgroundColor = [UIColor whiteColor];
         self.autoresizesSubviews = YES;
+        self.opaque = YES;
         
         _longPressGestureRecognizer = [[UILongPressGestureRecognizer alloc] initWithTarget: self action: @selector(cellWasLongPressed:)];
         _longPressGestureRecognizer.minimumPressDuration = 0.5f;
@@ -70,11 +71,6 @@
 - (void)setEditing:(BOOL)editing animated:(BOOL)animated
 {
     
-}
-
-- (void)setHidden:(BOOL)hidden
-{
-    [super setHidden: hidden];
 }
 
 - (void)setHighlighted: (BOOL)highlighted animated:(BOOL)animated
@@ -98,6 +94,8 @@
         {
             _highlightedBackgroundView.alpha = 1.0f;
             alpha = 0.0f;
+            
+            [self setNeedsTransparentContent: YES];
         }
         
         [self setHighlighted: !_isHighlighted];
@@ -106,21 +104,31 @@
         }
         completion: ^(BOOL finished)
         {
-            [self setHighlighted: _isHighlighted];
-            
             if( _isHighlighted == NO )
+            {
                 _highlightedBackgroundView.hidden = YES;
-    
+                [self setNeedsTransparentContent: YES];
+            }
         }];
+        
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (ANIMATION_TIME*0.5f) * NSEC_PER_SEC), dispatch_get_current_queue(), ^{
+            [self setHighlighted: _isHighlighted];
+        });
     }
     else
     {
         _highlightedBackgroundView.alpha = 1.0f;
         
         if( _isHighlighted )
+        {
             _highlightedBackgroundView.hidden = NO;
+            [self setNeedsTransparentContent: YES];
+        }
         else
+        {
             _highlightedBackgroundView.hidden = YES;
+            [self setNeedsTransparentContent: NO];
+        }
         
         [self setHighlighted: _isHighlighted];
     }
@@ -129,6 +137,12 @@
 - (void)setSelected:(BOOL)selected animated:(BOOL)animated
 {
     
+}
+
+- (void)setNeedsTransparentContent:(BOOL)transparent
+{
+    for( UIView *view in _contentView.subviews )
+        view.backgroundColor = transparent ? [UIColor clearColor] : self.backgroundColor;
 }
 
 #pragma mark -

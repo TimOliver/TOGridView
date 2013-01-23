@@ -11,6 +11,12 @@
 #import "UIDevice+ScreenIdioms.h"
 #import "TOGridViewTestCell.h"
 
+@interface TOGridViewViewController()
+
+- (void)editButtonTapped: (id)sender;
+
+@end
+
 @implementation TOGridViewViewController
 
 - (void)didReceiveMemoryWarning
@@ -64,7 +70,10 @@
     headerBevel.autoresizingMask = UIViewAutoresizingFlexibleWidth;
     [_gridView.headerView addSubview: headerBevel];
     
+    
+    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithTitle: @"Edit" style: UIBarButtonItemStylePlain target: self action: @selector(editButtonTapped:)];
     self.navigationController.navigationBar.tintColor = [UIColor colorWithWhite:0.1f alpha:1.0f];
+    
 }
 
 - (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)interfaceOrientation
@@ -163,5 +172,14 @@
     return cell;
 }
 
+-(void)editButtonTapped:(id)sender
+{
+    [_gridView setEditing: !_gridView.editing animated: YES];
+    
+    if( _gridView.editing )
+        self.navigationItem.rightBarButtonItem.title = @"Done";
+    else
+        self.navigationItem.rightBarButtonItem.title = @"Edit";
+}
 
 @end

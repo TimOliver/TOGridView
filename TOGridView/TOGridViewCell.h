@@ -42,6 +42,14 @@
 - (void)setHighlighted: (BOOL)highlighted animated:(BOOL)animated;
 - (void)setSelected: (BOOL)selected animated:(BOOL)animated;
 
+/* 
+ Ideally, for on-the-fly rendering performance, no views in the content view should
+ be transparent (eg, they should have a BG color matching the back view).
+ In the cases where the content need be transparent (eg, the highlighted background crossfading),
+ this method can be overridden on the cell subclass so it has a chance to set up the views properly. */
+ 
+- (void)setNeedsTransparentContent: (BOOL)transparent;
+
 @property (nonatomic, assign)   NSUInteger index;
 @property (nonatomic, weak)     TOGridView *gridView;
 

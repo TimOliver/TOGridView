@@ -16,6 +16,8 @@
 {
     if( self = [super initWithFrame: frame] )
     {
+        self.backgroundColor = [UIColor colorWithWhite: 0.96f alpha: 1.0f];
+        
         UIImage *bg         = [[UIImage alloc] initWithContentsOfFile: [[NSBundle mainBundle] pathForResource: @"CellBG" ofType: @"png"]];
         self.backgroundView = [[UIImageView alloc] initWithImage: [bg resizableImageWithCapInsets: UIEdgeInsetsMake(2, 2, 2, 2)]];
             
@@ -34,13 +36,4 @@
     
     return self;
 }
-
-- (void)setHighlighted:(BOOL)highlighted
-{
-    if( highlighted )
-        _textLabel.backgroundColor = [UIColor clearColor];
-    else
-        _textLabel.backgroundColor = [UIColor colorWithWhite: 0.96f alpha: 1.0f];
-}
-
 @end

@@ -120,6 +120,7 @@
 @property(nonatomic,strong) UIView                       *backgroundView;
 @property(nonatomic,assign) BOOL                         editing;
 @property(nonatomic,assign) NSInteger                    highlightedCellIndex;
+@property(nonatomic,assign) BOOL                         nonRetinaRenderContexts;
 
 /* Init the class, and register the cell class to use at the same time */
 - (id)initWithFrame:(CGRect)frame withCellClass: (Class)cellClass;
@@ -143,6 +144,9 @@
 
 /* Reload the entire table */
 - (void)reloadGrid;
+
+/* Enter edit mode */
+- (void)setEditing:(BOOL)editing animated:(BOOL)animated;
 
 @end
 

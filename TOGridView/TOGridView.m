@@ -42,7 +42,8 @@
             headerView = _headerView,
             backgroundView = _backgroundView,
             editing = _isEditing,
-            highlightedCellIndex = _highlightedCellIndex;
+            highlightedCellIndex = _highlightedCellIndex,
+            nonRetinaRenderContexts = _nonRetinaRenderContexts;
 
 #pragma mark -
 #pragma mark View Management
@@ -302,18 +303,18 @@
 }
 
 /* 
- layoutSubviews is called automatically whenever the scrollView's contentOffset changes,
- or when the parent view controller changes orientation.
- 
- This orientation animation technique is a modified version of one of the techniques that was 
- presented at WWDC 2012 in the presentation 'Polishing Your Interface Rotations'. It's been designed
- with the goal of handling everything from within the view itself, without requiring any additional work
- on the view controller's behalf.
- 
- When the iOS device is physically rotated and the orientation change event fires, (Which is captured here by detecting
- when a CAAnimation object has been applied to the 'bounds' property of the view), the view quickly renders 
- the 'before' and 'after' arrangement of the cells to UIImageViews. It then hides the original cells, overlays both image
- views over the top of the scrollview, and cross-fade animates between the two for the same duration as the rotation animation.
+layoutSubviews is called automatically whenever the scrollView's contentOffset changes,
+or when the parent view controller changes orientation.
+
+This orientation animation technique is a modified version of one of the techniques that was 
+presented at WWDC 2012 in the presentation 'Polishing Your Interface Rotations'. It's been designed
+with the goal of handling everything from within the view itself, without requiring any additional work
+on the view controller's behalf.
+
+When the iOS device is physically rotated and the orientation change event fires, (Which is captured here by detecting
+when a CAAnimation object has been applied to the 'bounds' property of the view), the view quickly renders 
+the 'before' and 'after' arrangement of the cells to UIImageViews. It then hides the original cells, overlays both image
+views over the top of the scrollview, and cross-fade animates between the two for the same duration as the rotation animation.
 */
 - (void)layoutSubviews
 {
@@ -361,6 +362,10 @@
         CGRect beforeRect = [boundsAnimation.fromValue CGRectValue];
         _beforeSnapshot = [[UIImageView alloc] initWithImage: [self snapshotOfCellsInRect: beforeRect]];
         
+        //Save the current visible cells before we apply the rotation so we can re-align it afterwards
+        NSRange visibleCells = _visibleCellRange;
+        CGFloat yOffsetFromTopOfRow = beforeRect.origin.y - (_offsetFromHeader + _cellPaddingInset.height + (floor(visibleCells.location/_numberOfCellsPerRow) * _rowHeight));
+        
         //poll the delegate again to see if anything needs changing since the bounds have changed
         //(Also, by this point, [UIViewController interfaceOrientation] has updated to the new orientation too)
         [self resetCellMetrics];
@@ -370,7 +375,19 @@
         if( self.contentSize.height - self.bounds.size.height >= beforeRect.origin.y )
             self.contentOffset = beforeRect.origin;
         
-        //reset the position and size of any cell already visible on the screen (as layoutCells ignores these)
+        /* 
+         If the header view is completely hidden (ie, only cells), re-orient the scroll view so the same cells are
+         onscreen in the new orientation
+         */
+        if( self.contentOffset.y - _offsetFromHeader > 0.0f && yOffsetFromTopOfRow >= 0.0f && visibleCells.location >= _numberOfCellsPerRow )
+        {
+            CGFloat y = _offsetFromHeader + _cellPaddingInset.height + (_rowHeight * floor(visibleCells.location/_numberOfCellsPerRow)) + yOffsetFromTopOfRow;
+            y = MIN( self.contentSize.height - self.bounds.size.height, y );
+            
+            self.contentOffset = CGPointMake(0,y);
+        }
+            
+        //remove all of the current cells so they can be reset in the next layout call
         [self invalidateVisibleCells];
     }
     
@@ -395,14 +412,16 @@
         //Bake the 'after' snapshot to the second imageView (only if we're a non-retina device) and get it ready for display
         if( !isRetinaDevice )
         {
-            _afterSnapshot = [[UIImageView alloc] initWithImage: [self snapshotOfCellsInRect: self.bounds]];
-            _afterSnapshot.frame = CGRectMake( CGRectGetMinX(self.frame), CGRectGetMinY(self.frame), CGRectGetWidth(self.bounds), CGRectGetHeight(self.bounds));
+            _afterSnapshot          = [[UIImageView alloc] initWithImage: [self snapshotOfCellsInRect: self.bounds]];
+            _afterSnapshot.alpha    = 1.0f;
+            _afterSnapshot.frame    = CGRectMake( CGRectGetMinX(self.frame), CGRectGetMinY(self.frame), CGRectGetWidth(self.bounds), CGRectGetHeight(self.bounds));
             [_afterSnapshot.layer removeAllAnimations];
         }
         
         //Get the 'before' snapshot ready
-        _beforeSnapshot.frame = CGRectMake( CGRectGetMinX(self.frame), CGRectGetMinY(self.frame), CGRectGetWidth(_beforeSnapshot.frame), CGRectGetHeight(_beforeSnapshot.frame));
-        [_beforeSnapshot.layer removeAllAnimations];        
+        _beforeSnapshot.frame       = CGRectMake( CGRectGetMinX(self.frame), CGRectGetMinY(self.frame), CGRectGetWidth(_beforeSnapshot.frame), CGRectGetHeight(_beforeSnapshot.frame));
+        _beforeSnapshot.alpha       = 0.0f;
+        [_beforeSnapshot.layer removeAllAnimations];
         
         for( TOGridViewCell *cell in _visibleCells )
         {
@@ -421,6 +440,7 @@
             {
                 //Apply a CABasicAnimation to each cell to animate it
                 CABasicAnimation *opacity   = [CABasicAnimation animationWithKeyPath: @"opacity"];
+                opacity.timingFunction      = boundsAnimation.timingFunction;
                 opacity.fromValue           = [NSNumber numberWithFloat: 0.0f];
                 opacity.toValue             = [NSNumber numberWithFloat: 1.0f];
                 opacity.duration            = boundsAnimation.duration;
@@ -428,23 +448,26 @@
             }
         }
         
-        //add the 'before' snapshot
+        //add the 'before' snapshot (Turns out it's better performance to add it to our superview rather than as a subview)
         [self.superview insertSubview: _beforeSnapshot aboveSubview: self];
         CABasicAnimation *opacity   = [CABasicAnimation animationWithKeyPath: @"opacity"];
+        opacity.timingFunction      = boundsAnimation.timingFunction;
         opacity.fromValue           = [NSNumber numberWithFloat: 1.0f];
         opacity.toValue             = [NSNumber numberWithFloat: 0.0f];
         opacity.duration            = boundsAnimation.duration;
         [_beforeSnapshot.layer addAnimation: opacity forKey: @"opacity"];
+        
         
         //add the 'after' snapshot
         if( !isRetinaDevice )
         {
             [self.superview insertSubview: _afterSnapshot aboveSubview: _beforeSnapshot];
             
-            opacity   = [CABasicAnimation animationWithKeyPath: @"opacity"];
-            opacity.fromValue           = [NSNumber numberWithFloat: 0.0f];
-            opacity.toValue             = [NSNumber numberWithFloat: 1.0f];
-            opacity.duration            = boundsAnimation.duration;
+            opacity                 = [CABasicAnimation animationWithKeyPath: @"opacity"];
+            opacity.timingFunction  = boundsAnimation.timingFunction;
+            opacity.fromValue       = [NSNumber numberWithFloat: 0.0f];
+            opacity.toValue         = [NSNumber numberWithFloat: 1.0f];
+            opacity.duration        = boundsAnimation.duration;
             [_afterSnapshot.layer addAnimation: opacity forKey: @"opacity"];
         }
     }
@@ -457,18 +480,25 @@
 /* CAAnimation Delegate */
 - (void)animationDidStop:(CAAnimation *)anim finished:(BOOL)flag
 {
+    /* 
+     This delegate actually gets called about 3 times per animation. So only proceed when it's definitely finished.
+     I'm HOPING there's no way the system can terminate an animation mid-way and not call 'completed' here
+    */
     if( flag == NO )
         return;
     
+    /* Remove the snapshots from the superview */
     if( _beforeSnapshot ) { [_beforeSnapshot removeFromSuperview]; _beforeSnapshot = nil; }
-    if( _afterSnapshot ) { [_afterSnapshot removeFromSuperview]; _afterSnapshot = nil; }
+    if( _afterSnapshot )  { [_afterSnapshot removeFromSuperview];  _afterSnapshot  = nil; }
     
+    /* Reset all of the visible cells to their default display state. */
     for( TOGridViewCell *cell in _visibleCells )
     {
         cell.hidden = NO;
         cell.alpha = 1.0f;
     }
     
+    /* Re-enable user interaction */
     self.userInteractionEnabled = YES;
 }
 
@@ -481,7 +511,7 @@
      Testing rendering the context, locked to non-Retina. Even if the iPad 3 only has to render one Retina bitmap,
      there's still a lot of noticable latency. And when the view is rotating, you can't even really see the Retina graphics.
      */
-    UIGraphicsBeginImageContextWithOptions( rect.size, NO, 1.0f );
+    UIGraphicsBeginImageContextWithOptions( rect.size, NO, _nonRetinaRenderContexts ? 1.0f : 0.0f );
     {
         CGContextRef context = UIGraphicsGetCurrentContext();
         
@@ -532,7 +562,15 @@
     return nil;
 }
 
-/* Add/edit/delete cells */
+#pragma mark -
+#pragma mark Cell Edit Handling
+- (void)setEditing:(BOOL)editing animated:(BOOL)animated
+{
+    _isEditing = editing;
+    
+    
+}
+
 - (BOOL)insertCellAtIndex: (NSInteger)index animated: (BOOL)animated
 {
     return YES;
