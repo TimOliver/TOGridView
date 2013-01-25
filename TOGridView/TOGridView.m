@@ -33,6 +33,8 @@
 - (TOGridViewCell *)cellForIndex: (NSInteger)index;
 - (UIImage *)snapshotOfCellsInRect: (CGRect)rect;
 - (void)invalidateVisibleCells;
+- (void)didPan: (UIPanGestureRecognizer *)gestureRecognizer;
+- (void)fireDragTimer: (id)timer;
 
 @end
 
@@ -43,7 +45,9 @@
             backgroundView = _backgroundView,
             editing = _isEditing,
             highlightedCellIndex = _highlightedCellIndex,
-            nonRetinaRenderContexts = _nonRetinaRenderContexts;
+            nonRetinaRenderContexts = _nonRetinaRenderContexts,
+            dragScrollBoundaryDistance = _dragScrollBoundaryDistance,
+            dragScrollMaxVelocity = _dragScrollMaxVelocity;
 
 #pragma mark -
 #pragma mark View Management
@@ -62,6 +66,9 @@
         _cellClass                  = [TOGridViewCell class];
         
         _highlightedCellIndex       = -1;
+        
+        _dragScrollBoundaryDistance = 60;
+        _dragScrollMaxVelocity      = 15;
     }
     
     return self;
@@ -160,6 +167,7 @@
 - (CGSize)contentSizeOfScrollView
 {
     CGSize size;
+    
     size.width      = CGRectGetWidth(self.bounds);
     
     size.height     = _offsetFromHeader;
@@ -322,7 +330,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     
     /* 
      Bit of a sneaky hack here. We've got two interesting scenarios happening:
-     The first-gen iPad has a slow GPU (meaning lots of blending is chuggy), but can bake views to UIImage REALLY fast (presumably because the views are non-Retina)
+     The first-gen iPad has a slow GPU (meaning lots of blending runs chuggy), but can bake views to UIImage REALLY fast (presumably because the views are non-Retina)
      The third-gen iPad has a kickass GPU (meaning tonnes of blending is easy), but its CPU (While faster than the iPad 1), has to cope with rendering retina UIImages.
      
      In order to get optimal render time+animation on both platforms, the following is happening:
@@ -438,7 +446,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
             }
             else
             {
-                //Apply a CABasicAnimation to each cell to animate it
+                //Apply a CABasicAnimation to each cell to animate its opacity
                 CABasicAnimation *opacity   = [CABasicAnimation animationWithKeyPath: @"opacity"];
                 opacity.timingFunction      = boundsAnimation.timingFunction;
                 opacity.fromValue           = [NSNumber numberWithFloat: 0.0f];
@@ -456,7 +464,6 @@ views over the top of the scrollview, and cross-fade animates between the two fo
         opacity.toValue             = [NSNumber numberWithFloat: 0.0f];
         opacity.duration            = boundsAnimation.duration;
         [_beforeSnapshot.layer addAnimation: opacity forKey: @"opacity"];
-        
         
         //add the 'after' snapshot
         if( !isRetinaDevice )
@@ -564,13 +571,6 @@ views over the top of the scrollview, and cross-fade animates between the two fo
 
 #pragma mark -
 #pragma mark Cell Edit Handling
-- (void)setEditing:(BOOL)editing animated:(BOOL)animated
-{
-    _isEditing = editing;
-    
-    
-}
-
 - (BOOL)insertCellAtIndex: (NSInteger)index animated: (BOOL)animated
 {
     return YES;
@@ -601,6 +601,44 @@ views over the top of the scrollview, and cross-fade animates between the two fo
         [cell setHighlighted: NO animated: animated];
     
     _highlightedCellIndex = -1;
+}
+
+- (void)didPan:(UIPanGestureRecognizer *)gestureRecognizer
+{
+    CGPoint panPoint = [gestureRecognizer locationInView: self];
+    panPoint.y -= self.bounds.origin.y; //compensate for scroll offset
+    panPoint.y = MAX( panPoint.y, 0 );
+    
+    /* Work out if we need to start scrolling */
+    if( panPoint.y < _dragScrollBoundaryDistance || panPoint.y > CGRectGetHeight(self.bounds) - _dragScrollBoundaryDistance )
+    {
+        if( _dragScrollTimer == nil )
+            _dragScrollTimer = [NSTimer scheduledTimerWithTimeInterval: 1.0f/60.0f target: self selector: @selector(fireDragTimer:) userInfo: nil repeats: YES];
+        
+        //If we're scrolling at the top
+        if( panPoint.y < _dragScrollBoundaryDistance )
+            _dragScrollBias = -(_dragScrollMaxVelocity - ((_dragScrollMaxVelocity/_dragScrollBoundaryDistance) * panPoint.y));
+        else if ( panPoint.y > CGRectGetHeight(self.bounds) - _dragScrollBoundaryDistance ) //we're scrolling at the bottom
+            _dragScrollBias = ((panPoint.y - (CGRectGetHeight(self.bounds) - _dragScrollBoundaryDistance)) / _dragScrollBoundaryDistance) * _dragScrollMaxVelocity;
+    }
+    
+    //cancel the scrolling if we tap up, or move our fingers to the middle
+    if( gestureRecognizer.state == UIGestureRecognizerStateEnded || ( panPoint.y>_dragScrollBoundaryDistance && panPoint.y<CGRectGetHeight(self.bounds)-_dragScrollBoundaryDistance ) )
+    {
+        [_dragScrollTimer invalidate];
+        _dragScrollTimer = nil;
+    }
+}
+
+- (void)fireDragTimer:(id)timer
+{
+    CGPoint offset = self.contentOffset;
+    
+    offset.y += _dragScrollBias;
+    offset.y = MAX( 0, offset.y );
+    offset.y = MIN( self.contentSize.height - CGRectGetHeight(self.bounds), offset.y );
+    
+    self.contentOffset = offset;
 }
 
 #pragma mark -
@@ -678,6 +716,25 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     
 }
 
+- (void)setEditing:(BOOL)editing animated:(BOOL)animated
+{
+    _isEditing = editing;
+    
+    if( _isEditing )
+    {
+        _panGestureRecognizer = [[UIPanGestureRecognizer alloc] initWithTarget: self action: @selector(didPan:)];
+        _panGestureRecognizer.minimumNumberOfTouches = 1;
+        [self addGestureRecognizer: _panGestureRecognizer];
+    }
+    else
+    {
+        [self removeGestureRecognizer: _panGestureRecognizer];
+        _panGestureRecognizer = nil;
+        
+        [_dragScrollTimer invalidate];
+        _dragScrollTimer = nil;
+    }
+}
 
 
 @end

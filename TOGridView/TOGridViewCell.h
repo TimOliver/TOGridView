@@ -28,18 +28,22 @@
     
     /* State tracking that would change the appearence of the cell. */
     BOOL _isEditing;        /* Whether the cell is currently in an editing state */
-    BOOL _isHighlighted;    /* Cell is currently 'highlighted' (eg, when a user taps it to open something) */
+    BOOL _isHighlighted;    /* Cell is currently 'highlighted' (ie, when a user taps it outside of edit mode) */
     BOOL _isSelected;       /* Cell is 'selected' (eg, when the user is selecting multiple cells for a batch operation) */
     
     /* Various gesture recognizers for detecting interactions with the cell */
-    UISwipeGestureRecognizer        *_swipeGestureRecognizer;
-    UILongPressGestureRecognizer    *_longPressGestureRecognizer;
+    UISwipeGestureRecognizer        *_swipeGestureRecognizer;               /* When the user swipes the cell */
+    UILongPressGestureRecognizer    *_longPressGestureRecognizer;     /* */
     
+    /* The view that all of the dynamic content of this cell is added to. */
     UIView *_contentView;
 }
 
+/* Set the state of the cell to editing. Will be called on all visible cells when the grid view enters edit mode */
 - (void)setEditing: (BOOL)editing animated: (BOOL)animated;
+/* Highlighted occurs when the user taps the view in non-edit mode */
 - (void)setHighlighted: (BOOL)highlighted animated:(BOOL)animated;
+/* Selected occurs when a cell is tapped in edit mode. Multiple cells may be selected at once. */
 - (void)setSelected: (BOOL)selected animated:(BOOL)animated;
 
 /* 
@@ -47,12 +51,13 @@
  be transparent (eg, they should have a BG color matching the back view).
  In the cases where the content need be transparent (eg, the highlighted background crossfading),
  this method can be overridden on the cell subclass so it has a chance to set up the views properly. */
- 
 - (void)setNeedsTransparentContent: (BOOL)transparent;
 
+/* Grid view management properties. You probably should modify these manually. (You can try. It might be hilarious XD) */
 @property (nonatomic, assign)   NSUInteger index;
 @property (nonatomic, weak)     TOGridView *gridView;
 
+/* Public accessors for the cell state */
 @property (nonatomic, assign)   BOOL editing;
 @property (nonatomic, assign)   BOOL selected;
 @property (nonatomic, assign)   BOOL highlighted;

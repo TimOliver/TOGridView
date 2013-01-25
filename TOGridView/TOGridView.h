@@ -32,6 +32,9 @@
 - (NSUInteger)numberOfCellsInGridView: (TOGridView *)gridView;
 - (TOGridViewCell *)gridView: (TOGridView *)gridView cellForIndex: (NSInteger)cellIndex;
 
+@optional
+
+
 @end
 
 @protocol TOGridViewDelegate <NSObject, UIScrollViewDelegate>
@@ -49,8 +52,6 @@
 - (void)gridView: (TOGridView *)gridView didLongTapCellAtIndex: (NSInteger)index;
 
 @end
-
-
 
 @interface TOGridView : UIScrollView {
     /* The class that is used to spawn cells */
@@ -99,6 +100,15 @@
     /* The ImageViews to store the before and after snapshots */
     UIImageView *_beforeSnapshot, *_afterSnapshot;
     
+    /* Gesture recognizer that handles dragging cells around */
+    UIPanGestureRecognizer *_panGestureRecognizer;
+    
+    /* Timer to control scrolling up and down while the user is dragging */
+    NSTimer *_dragScrollTimer;
+    
+    /* The amount the timer scrolls on each poll of the timer */
+    CGFloat _dragScrollBias;
+    
     struct {
         unsigned int dataSourceNumberOfCells;
         unsigned int dataSourceCellForIndex;
@@ -114,13 +124,15 @@
     } _gridViewFlags;
 }
 
-@property(nonatomic,assign) id <TOGridViewDataSource>    dataSource;
-@property(nonatomic,assign) id <TOGridViewDelegate>      delegate;
-@property(nonatomic,strong) UIView                       *headerView;
-@property(nonatomic,strong) UIView                       *backgroundView;
-@property(nonatomic,assign) BOOL                         editing;
-@property(nonatomic,assign) NSInteger                    highlightedCellIndex;
-@property(nonatomic,assign) BOOL                         nonRetinaRenderContexts;
+@property (nonatomic,assign) id <TOGridViewDataSource>    dataSource;
+@property (nonatomic,assign) id <TOGridViewDelegate>      delegate;
+@property (nonatomic,strong) UIView                       *headerView;
+@property (nonatomic,strong) UIView                       *backgroundView;
+@property (nonatomic,assign) BOOL                         editing;
+@property (nonatomic,assign) NSInteger                    highlightedCellIndex;
+@property (nonatomic,assign) BOOL                         nonRetinaRenderContexts;
+@property (nonatomic,assign) NSInteger                    dragScrollBoundaryDistance;
+@property (nonatomic,assign) CGFloat                      dragScrollMaxVelocity;
 
 /* Init the class, and register the cell class to use at the same time */
 - (id)initWithFrame:(CGRect)frame withCellClass: (Class)cellClass;
@@ -145,12 +157,15 @@
 /* Reload the entire table */
 - (void)reloadGrid;
 
-/* Enter edit mode */
-- (void)setEditing:(BOOL)editing animated:(BOOL)animated;
+/* Put the grid view into edit mode (Where cells can be selected and re-ordered.) */
+- (void)setEditing:(BOOL)editing animated:(BOOL)animated;   
 
 @end
 
-
+/*  
+ The old-skool method of declaring that a class conforms to a delegate protocol.
+ Necessary for CAAnimationDelegate. 
+*/
 @interface TOGridView (CAAnimationDelegate)
 
 - (void)animationDidStop:(CAAnimation *)anim finished:(BOOL)flag;
