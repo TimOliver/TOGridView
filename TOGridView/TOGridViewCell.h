@@ -23,9 +23,8 @@
 #import <UIKit/UIKit.h>
 
 @class TOGridView;
-@class TOTapGestureRecognizer;
 
-@interface TOGridViewCell : UIView <UIGestureRecognizerDelegate> {    
+@interface TOGridViewCell : UIView {    
     
     /* State tracking that would change the appearence of the cell. */
     BOOL _isEditing;        /* Whether the cell is currently in an editing state */
@@ -53,7 +52,7 @@
  this method can be overridden on the cell subclass so it has a chance to set up the views properly. */
 - (void)setNeedsTransparentContent: (BOOL)transparent;
 
-/* Grid view management properties. You probably should modify these manually. (You can try. It might be hilarious XD) */
+/* Grid view management properties. You probably shouldn't modify these manually. (You can try. It might be hilarious XD) */
 @property (nonatomic, assign)   NSUInteger index;
 @property (nonatomic, weak)     TOGridView *gridView;
 
@@ -69,14 +68,5 @@
 
 /* The primary view to place dynamic content */
 @property (nonatomic, readonly) UIView *contentView;
-
-@end
-
-/* Custom subclass of UIGestureRecognizer to detect single-taps properly */
-@interface TOTapGestureRecognizer : UIGestureRecognizer {
-    NSTimer *_timer;
-}
-
-- (void)invalidateTouch;
 
 @end

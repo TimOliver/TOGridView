@@ -40,9 +40,7 @@
             selected                    = _isSelected,
             backgroundView              = _backgroundView,
             highlightedBackgroundView   = _highlightedBackgroundView,
-            selectedBackgroundView      = _selectedBackgroundView,
-            tapGestureRecognizer        = _tapGestureRecognizer,
-            longPressGestureRecognizer  = _longPressGestureRecognizer;
+            selectedBackgroundView      = _selectedBackgroundView;
 
 - (id)initWithFrame:(CGRect)frame
 {    
@@ -60,32 +58,6 @@
 - (void)dealloc
 {
     _gridView = nil;
-}
-
-- (void)didMoveToSuperview
-{
-    /* This shouldn't be possible unless something other than the parent grid view is messing with this cell. */
-    if( _gridView == nil )
-        [NSException raise: @"Improper View Setup" format: @"%@", @"Cells cannot be added to a superview without a valid parent gridview."];
-    
-    _tapGestureRecognizer = [[UITapGestureRecognizer alloc] initWithTarget: _gridView action: @selector(_gridViewCellDidTap:)];
-    _tapGestureRecognizer.delegate = _gridView;
-    [self addGestureRecognizer: _tapGestureRecognizer];
-    
-    _longPressGestureRecognizer = [[UILongPressGestureRecognizer alloc] initWithTarget: _gridView action: @selector(_gridViewCellDidLongPress:)];
-    _longPressGestureRecognizer.delegate = _gridView;
-    _longPressGestureRecognizer.minimumPressDuration = 0.1f;
-    [self addGestureRecognizer: _longPressGestureRecognizer];
-    
-    _panGestureRecognizer = [[UIPanGestureRecognizer alloc] initWithTarget: _gridView action: @selector(_gridViewCellDidPan:)];
-    _panGestureRecognizer.delegate = _gridView;
-    _panGestureRecognizer.enabled = NO;
-    [self addGestureRecognizer: _panGestureRecognizer];
-    
-    _swipeGestureRecognizer = [[UISwipeGestureRecognizer alloc] initWithTarget: _gridView action: @selector(_gridViewCellDidSwipe:)];
-    _swipeGestureRecognizer.direction = UISwipeGestureRecognizerDirectionLeft;
-    _swipeGestureRecognizer.delegate = _gridView;
-    [self addGestureRecognizer: _swipeGestureRecognizer];
 }
 
 #pragma mark -
@@ -292,90 +264,6 @@
         [self insertSubview: _selectedBackgroundView atIndex: 0 ];
     
     _selectedBackgroundView.hidden = YES;
-}
-
-@end
-
-/********************************************************************************
- 
- UIGestureRecgonizer Subclass for detecting single tap events
- 
- *******************************************************************************/
-@interface TOTapGestureRecognizer ()
-
-- (void)timerFired: (NSTimer *)timer;
-
-@end
-
-@implementation TOTapGestureRecognizer
-
-/* State Reset */
-- (void)reset
-{
-    [super reset];
-    
-    self.state = UIGestureRecognizerStatePossible;
-}
-
-/* Gesture Recognizer Prevention Defines */
-- (BOOL)canPreventGestureRecognizer:(UIGestureRecognizer *)preventedGestureRecognizer
-{
-    /* Pan events (eg scroll views) will always force this recognizer to cancel. */
-    if( [preventedGestureRecognizer isKindOfClass: [UIPanGestureRecognizer class]] )
-        return NO;
-    
-    return [super canPreventGestureRecognizer: preventedGestureRecognizer];
-}
-
-- (BOOL)canBePreventedByGestureRecognizer:(UIGestureRecognizer *)preventingGestureRecognizer
-{
-    if( [preventingGestureRecognizer isKindOfClass: [UIPanGestureRecognizer class]] )
-        return YES;
-    
-    return [super canBePreventedByGestureRecognizer: preventingGestureRecognizer];
-}
-
-/* Touch Responder Events */
-- (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event
-{
-    [super touchesBegan: touches withEvent: event];
-
-    _timer = [NSTimer scheduledTimerWithTimeInterval: 0.15f target: self selector: @selector(timerFired:) userInfo:nil repeats: NO];
-}
-
-- (void)timerFired:(NSTimer *)timer
-{
-    //Starts when a user presses down inside a view
-    self.state = UIGestureRecognizerStateBegan;
-}
-
-- (void)touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event
-{
-    [super touchesMoved: touches withEvent: event];
-    
-    [_timer invalidate];
-    self.state = UIGestureRecognizerStateCancelled;
-}
-
-- (void)touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event
-{
-    [super touchesEnded: touches withEvent: event];
-    
-    [_timer invalidate];
-    
-    self.state = UIGestureRecognizerStateBegan;
-    self.state = UIGestureRecognizerStateRecognized;
-}
-
-- (void)touchesCancelled:(NSSet *)touches withEvent:(UIEvent *)event
-{
-    [super touchesCancelled: touches withEvent: event];
-    self.state = UIGestureRecognizerStateCancelled;
-}
-
-- (void)invalidateTouch
-{
-    self.state = UIGestureRecognizerStateCancelled;
 }
 
 @end

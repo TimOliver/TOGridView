@@ -98,6 +98,12 @@
     /* The ImageViews to store the before and after snapshots */
     UIImageView *_beforeSnapshot, *_afterSnapshot;
     
+    /* Timer to wait for long presses */
+    NSTimer *_longPressTimer;
+    
+    /* We keep track of the last index that fired a 'longPress' event so we know not to do the 'tapped' event when we press up. */
+    NSInteger _longPressIndex;
+    
     /* Timer that fires at 60FPS to dynamically animate the scrollView */
     NSTimer *_dragScrollTimer;
     
@@ -161,12 +167,6 @@
 
 /* Put the grid view into edit mode (Where cells can be selected and re-ordered.) */
 - (void)setEditing:(BOOL)editing animated:(BOOL)animated;   
-
-/* Notifications the cells can use to communicate back to the parent grid view */
-- (void)_gridViewCellDidTap: (UIGestureRecognizer *)gestureRecognizer;
-- (void)_gridViewCellDidLongPress: (UILongPressGestureRecognizer *)longPressGestureRecognizer;
-- (void)_gridViewCellDidPan: (UIPanGestureRecognizer *)panGestureRecognizer;
-- (void)_gridViewCellDidSwipe: (UISwipeGestureRecognizer *)swipeGestureRecognizer;
 
 @end
 

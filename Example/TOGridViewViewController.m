@@ -151,11 +151,11 @@
     NSLog( @"Cell %d tapped!", index );
 }
 
-/*- (void)gridView:(TOGridView *)gridView didLongTapCellAtIndex:(NSInteger)index
+- (void)gridView:(TOGridView *)gridView didLongTapCellAtIndex:(NSInteger)index
 {
     [gridView unhighlightCellAtIndex: index animated: YES];
     NSLog( @"Cell %d long tapped!", index );
-}*/
+}
 
 #pragma mark -
 #pragma mark Data Source

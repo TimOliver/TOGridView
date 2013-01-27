@@ -24,6 +24,8 @@
 #import "TOGridViewCell.h"
 #import <QuartzCore/QuartzCore.h>
 
+#define LONG_PRESS_TIME 0.4f
+
 @interface TOGridView (hidden)
 
 - (void)resetCellMetrics;
@@ -36,6 +38,8 @@
 - (void)didPan: (UIPanGestureRecognizer *)gestureRecognizer;
 - (void)fireDragTimer: (id)timer;
 - (void)setCellDraggingState: (BOOL)enabled withCell: (TOGridViewCell *)cell;
+- (TOGridViewCell *)cellInTouch: (UITouch *)touch;
+- (void)fireLongPressTimer: (NSTimer *)timer;
 
 @end
 
@@ -69,6 +73,8 @@
         
         _dragScrollBoundaryDistance = 60;
         _dragScrollMaxVelocity      = 15;
+        
+        _longPressIndex             = -1;
     }
     
     return self;
@@ -645,24 +651,78 @@ views over the top of the scrollview, and cross-fade animates between the two fo
 
 #pragma mark -
 #pragma mark Cell Interactions Handler
-//Notification sent to the grid view when the user taps a cell.
-- (void)_gridViewCellDidTap:(UIGestureRecognizer *)gestureRecognizer
+- (TOGridViewCell *)cellInTouch:(UITouch *)touch
 {
-    TOGridViewCell *cell = (TOGridViewCell *)[gestureRecognizer view];
-        
-    if( gestureRecognizer.state == UIGestureRecognizerStateRecognized )
+    UIView *view = [touch view];
+    //traverse hierarchy to see if we hit a cell
+    TOGridViewCell *cell = nil;
+    do
     {
-        
-        if( cell.longPressGestureRecognizer.state == UIGestureRecognizerStateEnded )
-            return;
-            
-        if( _gridViewFlags.delegateDidTapCell )
-            [self.delegate gridView: self didTapCellAtIndex: cell.index];
+        if( [view isKindOfClass: [TOGridViewCell class]] )
+        {
+            cell = (TOGridViewCell *)view;
+            break;
+        }
     }
+    while( (view = view.superview) != nil );
+    
+    return cell;
+}
+
+- (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event
+{    
+    TOGridViewCell *cell = [self cellInTouch: [touches anyObject]];
+
+    _longPressIndex = -1;
+    
+    if( cell )
+    {
+        [cell setHighlighted: YES animated: NO];
+        
+        if( _gridViewFlags.delegateDidLongTapCell )
+            _longPressTimer = [NSTimer scheduledTimerWithTimeInterval: LONG_PRESS_TIME target: self selector: @selector(fireLongPressTimer:) userInfo: cell repeats: NO];
+    }
+    
+    [super touchesBegan: touches withEvent: event];
+}
+
+- (void)fireLongPressTimer:(NSTimer *)timer
+{
+    TOGridViewCell *cell = (TOGridViewCell *)[timer userInfo];
+    
+    [self.delegate gridView: self didLongTapCellAtIndex: cell.index];
+    _longPressIndex = cell.index;
+}
+                       
+- (void)touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event
+{
+    [super touchesMoved: touches withEvent: event];
+}
+
+- (void)touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event
+{
+    TOGridViewCell *cell = [self cellInTouch: [touches anyObject]];
+    
+    if( cell && _gridViewFlags.delegateDidTapCell && cell.index != _longPressIndex )
+        [self.delegate gridView: self didTapCellAtIndex: cell.index];
+    
+    [_longPressTimer invalidate];
+    
+    [super touchesEnded: touches withEvent: event];
+}
+
+- (void)touchesCancelled:(NSSet *)touches withEvent:(UIEvent *)event
+{
+    TOGridViewCell *cell = [self cellInTouch: [touches anyObject]];
+    
+    if( cell )
+        [cell setHighlighted: NO animated: NO];
+    
+    [super touchesCancelled: touches withEvent: event];
 }
 
 //Various state handling for when the user taps and holds down on a cell
-- (void)_gridViewCellDidLongPress:(UILongPressGestureRecognizer *)longPressGestureRecognizer
+/*- (void)_gridViewCellDidLongPress:(UILongPressGestureRecognizer *)longPressGestureRecognizer
 {
     TOGridViewCell *cell = (TOGridViewCell *)[longPressGestureRecognizer view];
     
@@ -680,22 +740,22 @@ views over the top of the scrollview, and cross-fade animates between the two fo
             [self.delegate gridView: self didTapCellAtIndex: cell.index];
     }
     
-    /*if( _isEditing == NO )
+    if( _isEditing == NO )
     {
         if( _gridViewFlags.delegateDidLongTapCell )
         {
             [cell touchesEnded: nil withEvent: nil];
             [self.delegate gridView: self didLongTapCellAtIndex: cell.index];
         }
-    }*/
-    /*else
+    }
+    else
     {
         [cell becomeFirstResponder];
         [self setCellDraggingState: YES withCell: cell];
         
         _draggedCellOffset = CGSizeMake( hitPoint.x-cell.center.x, hitPoint.y-cell.center.y);
         _cellBeingDragged = cell;
-    }*/
+    }
 }
 
 - (void)_gridViewCellDidSwipe:(UISwipeGestureRecognizer *)gestureRecognizer
@@ -741,28 +801,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
         [_dragScrollTimer invalidate];
         _dragScrollTimer = nil;
     }
-}
-
-- (BOOL)gestureRecognizerShouldBegin:(UIGestureRecognizer *)gestureRecognizer
-{
-    /*if( [gestureRecognizer isMemberOfClass: [UILongPressGestureRecognizer class]] )
-    {
-        if( _isEditing == NO )
-            return _gridViewFlags.delegateDidLongTapCell;
-        else
-            return NO;
-    }*/
-    
-    return YES;
-}
-
-- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer
-{
-    if( [gestureRecognizer isMemberOfClass: [UITapGestureRecognizer class]] == NO || [otherGestureRecognizer isMemberOfClass: [UILongPressGestureRecognizer class]] == NO)
-        return NO;
-    
-    return YES;
-}
+}*/
 
 #pragma mark -
 #pragma mark Accessors
