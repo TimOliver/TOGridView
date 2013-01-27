@@ -33,12 +33,6 @@
     BOOL _isSelected;       /* Cell is 'selected' (eg, when the user is selecting multiple cells for a batch operation) */
     BOOL _isDragging;       /* Cell is currently being dragged around the screen by the user */
     
-    /* Various gesture recognizers for detecting interactions with the cell */
-    UITapGestureRecognizer          *_tapGestureRecognizer;         /* When the user taps the cell, faster than the long press */
-    UILongPressGestureRecognizer    *_longPressGestureRecognizer;   /* When the user taps and holds the cell. */
-    UISwipeGestureRecognizer        *_swipeGestureRecognizer;       /* When the user swipes the cell. */
-    UIPanGestureRecognizer          *_panGestureRecognizer;         /* When the user drags the view around the screen. */
-    
     /* The view that all of the dynamic content of this cell is added to. */
     UIView *_contentView;
 }
@@ -75,9 +69,6 @@
 
 /* The primary view to place dynamic content */
 @property (nonatomic, readonly) UIView *contentView;
-
-@property (nonatomic, readonly) UITapGestureRecognizer *tapGestureRecognizer;
-@property (nonatomic, readonly) UILongPressGestureRecognizer *longPressGestureRecognizer;
 
 @end
 
