@@ -35,6 +35,7 @@
 - (void)invalidateVisibleCells;
 - (void)didPan: (UIPanGestureRecognizer *)gestureRecognizer;
 - (void)fireDragTimer: (id)timer;
+- (void)setCellDraggingState: (BOOL)enabled withCell: (TOGridViewCell *)cell;
 
 @end
 
@@ -44,7 +45,6 @@
             headerView = _headerView,
             backgroundView = _backgroundView,
             editing = _isEditing,
-            highlightedCellIndex = _highlightedCellIndex,
             nonRetinaRenderContexts = _nonRetinaRenderContexts,
             dragScrollBoundaryDistance = _dragScrollBoundaryDistance,
             dragScrollMaxVelocity = _dragScrollMaxVelocity;
@@ -60,12 +60,12 @@
         self.backgroundColor        = [UIColor blackColor];
         self.scrollEnabled          = YES;
         self.alwaysBounceVertical   = YES;
+        self.multipleTouchEnabled   = NO;
+        self.exclusiveTouch         = YES;
         
         _recycledCells              = [NSMutableSet new];
         _visibleCells               = [NSMutableSet new];
         _cellClass                  = [TOGridViewCell class];
-        
-        _highlightedCellIndex       = -1;
         
         _dragScrollBoundaryDistance = 60;
         _dragScrollMaxVelocity      = 15;
@@ -250,6 +250,9 @@
     
     for( TOGridViewCell *cell in _visibleCells )
     {
+        if( cell == _cellBeingDragged )
+            continue;
+        
         if( cell.index < _visibleCellRange.location || cell.index >= _visibleCellRange.location+_visibleCellRange.length )
         {
             [_recycledCells addObject: cell];
@@ -277,6 +280,8 @@
         cell.gridView = self;
         cell.index = index;
         
+        [cell setHighlighted: NO animated: NO];
+        
         //make sure the frame is still properly set
         CGRect cellFrame;
         cellFrame.origin = [self originOfCellAtIndex: index];
@@ -292,12 +297,6 @@
         }
             
         cell.frame = cellFrame;
-        
-        //unhighlight it
-        if( _highlightedCellIndex == index)
-            [cell setHighlighted: YES animated: NO];
-        else
-            [cell setHighlighted: NO animated: NO];
         
         //add it to the visible objects set (It's already out of the recycled set at this point)
         [_visibleCells addObject: cell];
@@ -543,7 +542,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
 }
 
 #pragma mark -
-#pragma mark Cell/Decoration Handling
+#pragma mark Cell/Decoration Recycling
 
 /* Dequeue a recycled cell for reuse */
 - (TOGridViewCell *)dequeReusableCell
@@ -593,25 +592,139 @@ views over the top of the scrollview, and cross-fade animates between the two fo
 
 - (void)unhighlightCellAtIndex: (NSInteger)index animated: (BOOL)animated
 {
-    if( _highlightedCellIndex != index )
-        return;
-    
     TOGridViewCell *cell = [self cellForIndex: index];
     if( cell )
         [cell setHighlighted: NO animated: animated];
-    
-    _highlightedCellIndex = -1;
 }
 
-- (void)didPan:(UIPanGestureRecognizer *)gestureRecognizer
+/* Called every 1/60th of a second to animate the scroll view */
+- (void)fireDragTimer:(id)timer
 {
-    CGPoint panPoint = [gestureRecognizer locationInView: self];
-    panPoint.y -= self.bounds.origin.y; //compensate for scroll offset
-    panPoint.y = MAX( panPoint.y, 0 );
+    CGPoint offset = self.contentOffset;
+    offset.y += _dragScrollBias; //Add the calculated scroll bias to the current scroll offset
+    offset.y = MAX( 0, offset.y ); //Clamp the value so we can't accidentally scroll past the end of the content
+    offset.y = MIN( self.contentSize.height - CGRectGetHeight(self.bounds), offset.y );
+    self.contentOffset = offset;
     
-    /* Work out if we need to start scrolling */
+    if( _cellBeingDragged )
+    {
+        CGRect frame = _cellBeingDragged.frame;
+        frame.origin.y += _dragScrollBias;
+        _cellBeingDragged.frame = frame;
+    }
+}
+
+- (void)setCellDraggingState: (BOOL)enabled withCell: (TOGridViewCell *)cell
+{
+    [cell.superview bringSubviewToFront: cell];
+    
+    if( enabled )
+        [cell setHighlighted: YES animated: NO];
+    else
+        [cell setHighlighted: NO animated: YES];
+    
+    [UIView animateWithDuration: 0.25 animations: ^{
+        
+        if( enabled )
+        {
+            cell.alpha = 0.75f;
+            cell.transform = CGAffineTransformScale(cell.transform, 1.1f, 1.1f);
+        }
+        else
+        {
+            cell.alpha = 1.0f;
+            cell.transform = CGAffineTransformIdentity;
+            
+            CGRect newFrame = cell.frame;
+            newFrame.origin = [self originOfCellAtIndex: cell.index];
+            cell.frame = newFrame;
+        }
+    
+    }];
+}
+
+#pragma mark -
+#pragma mark Cell Interactions Handler
+//Notification sent to the grid view when the user taps a cell.
+- (void)_gridViewCellDidTap:(UIGestureRecognizer *)gestureRecognizer
+{
+    TOGridViewCell *cell = (TOGridViewCell *)[gestureRecognizer view];
+        
+    if( gestureRecognizer.state == UIGestureRecognizerStateRecognized )
+    {
+        
+        if( cell.longPressGestureRecognizer.state == UIGestureRecognizerStateEnded )
+            return;
+            
+        if( _gridViewFlags.delegateDidTapCell )
+            [self.delegate gridView: self didTapCellAtIndex: cell.index];
+    }
+}
+
+//Various state handling for when the user taps and holds down on a cell
+- (void)_gridViewCellDidLongPress:(UILongPressGestureRecognizer *)longPressGestureRecognizer
+{
+    TOGridViewCell *cell = (TOGridViewCell *)[longPressGestureRecognizer view];
+    
+    if( longPressGestureRecognizer.state == UIGestureRecognizerStateBegan )
+    {
+        [cell setHighlighted: YES animated: NO];
+    }
+    else if( longPressGestureRecognizer.state == UIGestureRecognizerStateCancelled)
+    {
+        [cell setHighlighted: NO animated: NO];
+    }
+    else if( longPressGestureRecognizer.state == UIGestureRecognizerStateRecognized )
+    {
+        if( _gridViewFlags.delegateDidTapCell )
+            [self.delegate gridView: self didTapCellAtIndex: cell.index];
+    }
+    
+    /*if( _isEditing == NO )
+    {
+        if( _gridViewFlags.delegateDidLongTapCell )
+        {
+            [cell touchesEnded: nil withEvent: nil];
+            [self.delegate gridView: self didLongTapCellAtIndex: cell.index];
+        }
+    }*/
+    /*else
+    {
+        [cell becomeFirstResponder];
+        [self setCellDraggingState: YES withCell: cell];
+        
+        _draggedCellOffset = CGSizeMake( hitPoint.x-cell.center.x, hitPoint.y-cell.center.y);
+        _cellBeingDragged = cell;
+    }*/
+}
+
+- (void)_gridViewCellDidSwipe:(UISwipeGestureRecognizer *)gestureRecognizer
+{
+    TOGridViewCell *cell = (TOGridViewCell *)[gestureRecognizer view];
+    NSLog( @"%@", cell );
+}
+   
+- (void)_gridViewCellDidPan:(UIPanGestureRecognizer *)panGestureRecognizer
+{
+    if( _cellBeingDragged == nil )
+        return;
+    
+    CGPoint panPoint = [panGestureRecognizer locationInView: self];
+    panPoint.y -= self.bounds.origin.y; //compensate for scroll offset
+    panPoint.y = MAX( panPoint.y, 0 ); panPoint.y = MIN( panPoint.y, CGRectGetHeight(self.bounds) ); //clamp to the outer bounds of the view
+    
+    if( _cellBeingDragged )
+    {
+        CGPoint center = _cellBeingDragged.center;
+        center.x = panPoint.x - _draggedCellOffset.width;
+        center.y = (panPoint.y - _draggedCellOffset.height);
+        _cellBeingDragged.center = center;
+    }
+    
+    //Determine if the touch location is within the scroll boundaries at either the top or bottom
     if( panPoint.y < _dragScrollBoundaryDistance || panPoint.y > CGRectGetHeight(self.bounds) - _dragScrollBoundaryDistance )
     {
+        //Kickstart a timer that'll fire at 60FPS to dynamically animate the scrollview
         if( _dragScrollTimer == nil )
             _dragScrollTimer = [NSTimer scheduledTimerWithTimeInterval: 1.0f/60.0f target: self selector: @selector(fireDragTimer:) userInfo: nil repeats: YES];
         
@@ -622,23 +735,33 @@ views over the top of the scrollview, and cross-fade animates between the two fo
             _dragScrollBias = ((panPoint.y - (CGRectGetHeight(self.bounds) - _dragScrollBoundaryDistance)) / _dragScrollBoundaryDistance) * _dragScrollMaxVelocity;
     }
     
-    //cancel the scrolling if we tap up, or move our fingers to the middle
-    if( gestureRecognizer.state == UIGestureRecognizerStateEnded || ( panPoint.y>_dragScrollBoundaryDistance && panPoint.y<CGRectGetHeight(self.bounds)-_dragScrollBoundaryDistance ) )
+    //cancel the scrolling if we tap up, or move our fingers into the middle of the screen
+    if( ( panPoint.y>_dragScrollBoundaryDistance && panPoint.y<CGRectGetHeight(self.bounds)-_dragScrollBoundaryDistance ) )
     {
         [_dragScrollTimer invalidate];
         _dragScrollTimer = nil;
     }
 }
 
-- (void)fireDragTimer:(id)timer
+- (BOOL)gestureRecognizerShouldBegin:(UIGestureRecognizer *)gestureRecognizer
 {
-    CGPoint offset = self.contentOffset;
+    /*if( [gestureRecognizer isMemberOfClass: [UILongPressGestureRecognizer class]] )
+    {
+        if( _isEditing == NO )
+            return _gridViewFlags.delegateDidLongTapCell;
+        else
+            return NO;
+    }*/
     
-    offset.y += _dragScrollBias;
-    offset.y = MAX( 0, offset.y );
-    offset.y = MIN( self.contentSize.height - CGRectGetHeight(self.bounds), offset.y );
+    return YES;
+}
+
+- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer
+{
+    if( [gestureRecognizer isMemberOfClass: [UITapGestureRecognizer class]] == NO || [otherGestureRecognizer isMemberOfClass: [UILongPressGestureRecognizer class]] == NO)
+        return NO;
     
-    self.contentOffset = offset;
+    return YES;
 }
 
 #pragma mark -
@@ -666,8 +789,10 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     
     _dataSource = dataSource;
     
-    _gridViewFlags.dataSourceCellForIndex       = [_dataSource respondsToSelector: @selector( gridView:cellForIndex:)];
+    _gridViewFlags.dataSourceCellForIndex       = [_dataSource respondsToSelector: @selector(gridView:cellForIndex:)];
     _gridViewFlags.dataSourceNumberOfCells      = [_dataSource respondsToSelector: @selector(numberOfCellsInGridView:)];
+    _gridViewFlags.dataSourceCanEditCell        = [_dataSource respondsToSelector: @selector(gridView:canEditCellAtIndex:)];
+    _gridViewFlags.dataSourceCanMoveCell        = [_dataSource respondsToSelector: @selector(gridView:canMoveCellAtIndex:)];
 }
 
 - (void)setHeaderView:(UIView *)headerView
@@ -713,7 +838,6 @@ views over the top of the scrollview, and cross-fade animates between the two fo
         [self invalidateVisibleCells];
         [self resetCellMetrics];
     }
-    
 }
 
 - (void)setEditing:(BOOL)editing animated:(BOOL)animated
@@ -722,15 +846,10 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     
     if( _isEditing )
     {
-        _panGestureRecognizer = [[UIPanGestureRecognizer alloc] initWithTarget: self action: @selector(didPan:)];
-        _panGestureRecognizer.minimumNumberOfTouches = 1;
-        [self addGestureRecognizer: _panGestureRecognizer];
+
     }
     else
     {
-        [self removeGestureRecognizer: _panGestureRecognizer];
-        _panGestureRecognizer = nil;
-        
         [_dragScrollTimer invalidate];
         _dragScrollTimer = nil;
     }

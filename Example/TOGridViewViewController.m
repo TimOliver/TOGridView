@@ -151,11 +151,11 @@
     NSLog( @"Cell %d tapped!", index );
 }
 
-- (void)gridView:(TOGridView *)gridView didLongTapCellAtIndex:(NSInteger)index
+/*- (void)gridView:(TOGridView *)gridView didLongTapCellAtIndex:(NSInteger)index
 {
     [gridView unhighlightCellAtIndex: index animated: YES];
     NSLog( @"Cell %d long tapped!", index );
-}
+}*/
 
 #pragma mark -
 #pragma mark Data Source
@@ -172,6 +172,13 @@
     return cell;
 }
 
+- (BOOL)gridView:(TOGridView *)gridView canMoveCellAtIndex:(NSInteger)cellIndex
+{
+    return YES;
+}
+
+#pragma mark -
+#pragma mark Button Callbacks
 -(void)editButtonTapped:(id)sender
 {
     [_gridView setEditing: !_gridView.editing animated: YES];

@@ -103,7 +103,6 @@
 		F1CD720F16A3DFC6003D5FB8 = {
 			isa = PBXGroup;
 			children = (
-				2298299416AEBC9F00B7537D /* QuartzCore.framework */,
 				226C94A816ABB954007650CD /* Default-568h@2x.png */,
 				F1CD722416A3DFC6003D5FB8 /* TOGridView */,
 				F1CD721D16A3DFC6003D5FB8 /* Frameworks */,
@@ -122,6 +121,7 @@
 		F1CD721D16A3DFC6003D5FB8 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				2298299416AEBC9F00B7537D /* QuartzCore.framework */,
 				F1CD721E16A3DFC6003D5FB8 /* UIKit.framework */,
 				F1CD722016A3DFC6003D5FB8 /* Foundation.framework */,
 				F1CD722216A3DFC6003D5FB8 /* CoreGraphics.framework */,

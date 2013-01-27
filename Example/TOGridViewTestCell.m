@@ -16,6 +16,7 @@
 {
     if( self = [super initWithFrame: frame] )
     {
+        self.opaque = YES;
         self.backgroundColor = [UIColor colorWithWhite: 0.96f alpha: 1.0f];
         
         UIImage *bg         = [[UIImage alloc] initWithContentsOfFile: [[NSBundle mainBundle] pathForResource: @"CellBG" ofType: @"png"]];

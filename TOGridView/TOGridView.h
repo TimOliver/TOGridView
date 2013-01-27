@@ -33,7 +33,8 @@
 - (TOGridViewCell *)gridView: (TOGridView *)gridView cellForIndex: (NSInteger)cellIndex;
 
 @optional
-
+- (BOOL)gridView: (TOGridView *)gridView canMoveCellAtIndex: (NSInteger)cellIndex;
+- (BOOL)gridView: (TOGridView *)gridView canEditCellAtIndex:(NSInteger)cellIndex;
 
 @end
 
@@ -53,7 +54,7 @@
 
 @end
 
-@interface TOGridView : UIScrollView {
+@interface TOGridView : UIScrollView <UIGestureRecognizerDelegate> {
     /* The class that is used to spawn cells */
     Class       _cellClass;
     
@@ -93,25 +94,27 @@
     
     /* Y-offset of cell, within the row */
     NSInteger _offsetOfCellsInRow;
-    
-    /* Only one cell can ever be highlighted at once. This tracks that state */
-    NSInteger _highlightedCellIndex;
-    
+
     /* The ImageViews to store the before and after snapshots */
     UIImageView *_beforeSnapshot, *_afterSnapshot;
     
-    /* Gesture recognizer that handles dragging cells around */
-    UIPanGestureRecognizer *_panGestureRecognizer;
-    
-    /* Timer to control scrolling up and down while the user is dragging */
+    /* Timer that fires at 60FPS to dynamically animate the scrollView */
     NSTimer *_dragScrollTimer;
     
-    /* The amount the timer scrolls on each poll of the timer */
+    /* The amount the offset of the scrollview is incremented on each call of the timer*/
     CGFloat _dragScrollBias;
+    
+    /* The specific cell item that's being dragged by the user */
+    TOGridViewCell *_cellBeingDragged;
+    
+    /* The distance between the cell's origin and the user's touch position */
+    CGSize _draggedCellOffset;
     
     struct {
         unsigned int dataSourceNumberOfCells;
         unsigned int dataSourceCellForIndex;
+        unsigned int dataSourceCanMoveCell;
+        unsigned int dataSourceCanEditCell;
         
         unsigned int delegateSizeOfCells;
         unsigned int delegateNumberOfCellsPerRow;
@@ -129,7 +132,6 @@
 @property (nonatomic,strong) UIView                       *headerView;
 @property (nonatomic,strong) UIView                       *backgroundView;
 @property (nonatomic,assign) BOOL                         editing;
-@property (nonatomic,assign) NSInteger                    highlightedCellIndex;
 @property (nonatomic,assign) BOOL                         nonRetinaRenderContexts;
 @property (nonatomic,assign) NSInteger                    dragScrollBoundaryDistance;
 @property (nonatomic,assign) CGFloat                      dragScrollMaxVelocity;
@@ -160,11 +162,16 @@
 /* Put the grid view into edit mode (Where cells can be selected and re-ordered.) */
 - (void)setEditing:(BOOL)editing animated:(BOOL)animated;   
 
+/* Notifications the cells can use to communicate back to the parent grid view */
+- (void)_gridViewCellDidTap: (UIGestureRecognizer *)gestureRecognizer;
+- (void)_gridViewCellDidLongPress: (UILongPressGestureRecognizer *)longPressGestureRecognizer;
+- (void)_gridViewCellDidPan: (UIPanGestureRecognizer *)panGestureRecognizer;
+- (void)_gridViewCellDidSwipe: (UISwipeGestureRecognizer *)swipeGestureRecognizer;
+
 @end
 
 /*  
- The old-skool method of declaring that a class conforms to a delegate protocol.
- Necessary for CAAnimationDelegate. 
+ The old-skool method of declaring classes accept delegate protocols. Necessary for CAAnimationDelegate. 
 */
 @interface TOGridView (CAAnimationDelegate)
 
