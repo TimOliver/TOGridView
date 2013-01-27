@@ -140,8 +140,10 @@
 
 - (void)setDragging: (BOOL)dragging animated: (BOOL)animated
 {
+    [self.superview bringSubviewToFront: self];
+    
     CGAffineTransform originTransform = CGAffineTransformIdentity;
-    CGAffineTransform destTransform = CGAffineTransformScale(self.transform, 1.2f, 1.2f);
+    CGAffineTransform destTransform = CGAffineTransformScale(self.transform, 1.1f, 1.1f);
     
     CGFloat originAlpha = 1.0f;
     CGFloat destAlpha = 0.75;
@@ -161,7 +163,7 @@
             self.alpha = destAlpha;
         }
         
-        [UIView animateWithDuration: 0.4f animations: ^{
+        [UIView animateWithDuration: 0.25f animations: ^{
             if( dragging )
             {
                 self.transform = destTransform;

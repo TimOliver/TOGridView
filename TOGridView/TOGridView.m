@@ -670,8 +670,9 @@ views over the top of the scrollview, and cross-fade animates between the two fo
 }
 
 - (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event
-{    
-    TOGridViewCell *cell = [self cellInTouch: [touches anyObject]];
+{
+    UITouch *touch = [touches anyObject];
+    TOGridViewCell *cell = [self cellInTouch: touch];
 
     _longPressIndex = -1;
     
@@ -679,8 +680,8 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     {
         [cell setHighlighted: YES animated: NO];
         
-        if( _gridViewFlags.delegateDidLongTapCell )
-            _longPressTimer = [NSTimer scheduledTimerWithTimeInterval: LONG_PRESS_TIME target: self selector: @selector(fireLongPressTimer:) userInfo: cell repeats: NO];
+        if( (_isEditing == NO && _gridViewFlags.delegateDidLongTapCell) || (_isEditing && _gridViewFlags.dataSourceCanMoveCell) )
+            _longPressTimer = [NSTimer scheduledTimerWithTimeInterval: LONG_PRESS_TIME target: self selector: @selector(fireLongPressTimer:) userInfo: touch repeats: NO];
     }
     
     [super touchesBegan: touches withEvent: event];
@@ -688,14 +689,67 @@ views over the top of the scrollview, and cross-fade animates between the two fo
 
 - (void)fireLongPressTimer:(NSTimer *)timer
 {
-    TOGridViewCell *cell = (TOGridViewCell *)[timer userInfo];
+    UITouch *touch = [timer userInfo];
+    TOGridViewCell *cell = (TOGridViewCell *)[self cellInTouch: touch];
     
-    [self.delegate gridView: self didLongTapCellAtIndex: cell.index];
-    _longPressIndex = cell.index;
+    if( _isEditing == NO )
+    {
+        [self.delegate gridView: self didLongTapCellAtIndex: cell.index];
+        _longPressIndex = cell.index;
+    }
+    else
+    {
+        _cellBeingDragged = cell;
+        [cell setDragging: YES animated: YES];
+        [self setScrollEnabled: NO];
+        
+        CGPoint hitPoint = [touch locationInView: cell];
+        _draggedCellOffset = CGSizeMake(hitPoint.x, hitPoint.y );
+    }
 }
-                       
+    
 - (void)touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event
 {
+    UITouch *touch = [touches anyObject];
+    CGPoint panPoint = [touch locationInView: self];
+    
+    if( _isEditing && _cellBeingDragged )
+    {
+        panPoint.y -= self.bounds.origin.y; //compensate for scroll offset
+        panPoint.y = MAX( panPoint.y, 0 ); panPoint.y = MIN( panPoint.y, CGRectGetHeight(self.bounds) ); //clamp to the outer bounds of the view
+        
+        if( _cellBeingDragged )
+        {
+            CGPoint center = _cellBeingDragged.center;
+            center.x = panPoint.x - _draggedCellOffset.width;
+            center.y = (panPoint.y - _draggedCellOffset.height);
+            _cellBeingDragged.center = center;
+        }
+        
+        //Determine if the touch location is within the scroll boundaries at either the top or bottom
+        if( panPoint.y < _dragScrollBoundaryDistance || panPoint.y > CGRectGetHeight(self.bounds) - _dragScrollBoundaryDistance )
+        {
+            //Kickstart a timer that'll fire at 60FPS to dynamically animate the scrollview
+            if( _dragScrollTimer == nil )
+                _dragScrollTimer = [NSTimer scheduledTimerWithTimeInterval: 1.0f/60.0f target: self selector: @selector(fireDragTimer:) userInfo: nil repeats: YES];
+            
+            //If we're scrolling at the top
+            if( panPoint.y < _dragScrollBoundaryDistance )
+                _dragScrollBias = -(_dragScrollMaxVelocity - ((_dragScrollMaxVelocity/_dragScrollBoundaryDistance) * panPoint.y));
+            else if ( panPoint.y > CGRectGetHeight(self.bounds) - _dragScrollBoundaryDistance ) //we're scrolling at the bottom
+                _dragScrollBias = ((panPoint.y - (CGRectGetHeight(self.bounds) - _dragScrollBoundaryDistance)) / _dragScrollBoundaryDistance) * _dragScrollMaxVelocity;
+        }
+        
+        //cancel the scrolling if we tap up, or move our fingers into the middle of the screen
+        if( ( panPoint.y>_dragScrollBoundaryDistance && panPoint.y<CGRectGetHeight(self.bounds)-_dragScrollBoundaryDistance ) )
+        {
+            [_dragScrollTimer invalidate];
+            _dragScrollTimer = nil;
+        }
+                            
+        _cellBeingDragged.frame = CGRectMake( panPoint.x - _draggedCellOffset.width, panPoint.y - _draggedCellOffset.height, CGRectGetWidth(_cellBeingDragged.frame), CGRectGetHeight(_cellBeingDragged.frame) );
+    }
+        
     [super touchesMoved: touches withEvent: event];
 }
 
@@ -703,8 +757,21 @@ views over the top of the scrollview, and cross-fade animates between the two fo
 {
     TOGridViewCell *cell = [self cellInTouch: [touches anyObject]];
     
-    if( cell && _gridViewFlags.delegateDidTapCell && cell.index != _longPressIndex )
-        [self.delegate gridView: self didTapCellAtIndex: cell.index];
+    if( _isEditing == NO )
+    {
+        if( cell && _gridViewFlags.delegateDidTapCell && cell.index != _longPressIndex )
+            [self.delegate gridView: self didTapCellAtIndex: cell.index];
+    }
+    else
+    {
+        if( _cellBeingDragged )
+        {
+            [_cellBeingDragged setDragging: NO animated: YES];
+            _cellBeingDragged = nil;
+            
+            [self setScrollEnabled: YES];
+        }
+    }
     
     [_longPressTimer invalidate];
     
@@ -718,90 +785,25 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     if( cell )
         [cell setHighlighted: NO animated: NO];
     
+    if( _isEditing && _cellBeingDragged )
+    {
+        [_cellBeingDragged setDragging: NO animated: NO];
+        _cellBeingDragged = nil;
+        
+        [self setScrollEnabled: YES];
+    }
+    
+    [_longPressTimer invalidate];
     [super touchesCancelled: touches withEvent: event];
 }
 
-//Various state handling for when the user taps and holds down on a cell
-/*- (void)_gridViewCellDidLongPress:(UILongPressGestureRecognizer *)longPressGestureRecognizer
-{
-    TOGridViewCell *cell = (TOGridViewCell *)[longPressGestureRecognizer view];
-    
-    if( longPressGestureRecognizer.state == UIGestureRecognizerStateBegan )
-    {
-        [cell setHighlighted: YES animated: NO];
-    }
-    else if( longPressGestureRecognizer.state == UIGestureRecognizerStateCancelled)
-    {
-        [cell setHighlighted: NO animated: NO];
-    }
-    else if( longPressGestureRecognizer.state == UIGestureRecognizerStateRecognized )
-    {
-        if( _gridViewFlags.delegateDidTapCell )
-            [self.delegate gridView: self didTapCellAtIndex: cell.index];
-    }
-    
-    if( _isEditing == NO )
-    {
-        if( _gridViewFlags.delegateDidLongTapCell )
-        {
-            [cell touchesEnded: nil withEvent: nil];
-            [self.delegate gridView: self didLongTapCellAtIndex: cell.index];
-        }
-    }
-    else
-    {
-        [cell becomeFirstResponder];
-        [self setCellDraggingState: YES withCell: cell];
-        
-        _draggedCellOffset = CGSizeMake( hitPoint.x-cell.center.x, hitPoint.y-cell.center.y);
-        _cellBeingDragged = cell;
-    }
-}
-
-- (void)_gridViewCellDidSwipe:(UISwipeGestureRecognizer *)gestureRecognizer
-{
-    TOGridViewCell *cell = (TOGridViewCell *)[gestureRecognizer view];
-    NSLog( @"%@", cell );
-}
-   
 - (void)_gridViewCellDidPan:(UIPanGestureRecognizer *)panGestureRecognizer
 {
     if( _cellBeingDragged == nil )
         return;
     
     CGPoint panPoint = [panGestureRecognizer locationInView: self];
-    panPoint.y -= self.bounds.origin.y; //compensate for scroll offset
-    panPoint.y = MAX( panPoint.y, 0 ); panPoint.y = MIN( panPoint.y, CGRectGetHeight(self.bounds) ); //clamp to the outer bounds of the view
-    
-    if( _cellBeingDragged )
-    {
-        CGPoint center = _cellBeingDragged.center;
-        center.x = panPoint.x - _draggedCellOffset.width;
-        center.y = (panPoint.y - _draggedCellOffset.height);
-        _cellBeingDragged.center = center;
-    }
-    
-    //Determine if the touch location is within the scroll boundaries at either the top or bottom
-    if( panPoint.y < _dragScrollBoundaryDistance || panPoint.y > CGRectGetHeight(self.bounds) - _dragScrollBoundaryDistance )
-    {
-        //Kickstart a timer that'll fire at 60FPS to dynamically animate the scrollview
-        if( _dragScrollTimer == nil )
-            _dragScrollTimer = [NSTimer scheduledTimerWithTimeInterval: 1.0f/60.0f target: self selector: @selector(fireDragTimer:) userInfo: nil repeats: YES];
-        
-        //If we're scrolling at the top
-        if( panPoint.y < _dragScrollBoundaryDistance )
-            _dragScrollBias = -(_dragScrollMaxVelocity - ((_dragScrollMaxVelocity/_dragScrollBoundaryDistance) * panPoint.y));
-        else if ( panPoint.y > CGRectGetHeight(self.bounds) - _dragScrollBoundaryDistance ) //we're scrolling at the bottom
-            _dragScrollBias = ((panPoint.y - (CGRectGetHeight(self.bounds) - _dragScrollBoundaryDistance)) / _dragScrollBoundaryDistance) * _dragScrollMaxVelocity;
-    }
-    
-    //cancel the scrolling if we tap up, or move our fingers into the middle of the screen
-    if( ( panPoint.y>_dragScrollBoundaryDistance && panPoint.y<CGRectGetHeight(self.bounds)-_dragScrollBoundaryDistance ) )
-    {
-        [_dragScrollTimer invalidate];
-        _dragScrollTimer = nil;
-    }
-}*/
+}
 
 #pragma mark -
 #pragma mark Accessors
@@ -883,11 +885,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
 {
     _isEditing = editing;
     
-    if( _isEditing )
-    {
-
-    }
-    else
+    if( !_isEditing )
     {
         [_dragScrollTimer invalidate];
         _dragScrollTimer = nil;
