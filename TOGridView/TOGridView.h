@@ -26,6 +26,9 @@
 @class TOGridView;
 @class TOGridViewCell;
 
+///
+/// Data Source Object
+///
 @protocol TOGridViewDataSource <NSObject>
 
 @required
@@ -38,6 +41,9 @@
 
 @end
 
+///
+/// Delegate Object
+///
 @protocol TOGridViewDelegate <NSObject, UIScrollViewDelegate>
 
 @required
@@ -73,9 +79,9 @@
     NSMutableArray *_selectedCells;
     
     /* Padding of cells from edge of view */
-    CGSize _cellPaddingInset;
-    /*Size of each cell */
-    CGSize _cellSize;
+    CGSize      _cellPaddingInset;
+    /*Size of each cell (This will become the tappable region) */
+    CGSize      _cellSize;
     
     /* Number of cells in grid view */
     NSInteger _numberOfCells;
@@ -110,12 +116,19 @@
     /* The amount the offset of the scrollview is incremented on each call of the timer*/
     CGFloat _dragScrollBias;
     
+    /* While dragging a cell around, this keeps track of which other cell's area it's currently hovering over */
+    NSInteger _cellIndexBeingDraggedOver;
+    
     /* The specific cell item that's being dragged by the user */
     TOGridViewCell *_cellBeingDragged;
+    
+    /* The co-ords of the user's fingers from the last touch event to update the drag cell while it's animating */
+    CGPoint _cellDragPoint;
     
     /* The distance between the cell's origin and the user's touch position */
     CGSize _draggedCellOffset;
     
+    /* Store what protocol methods the delegate/dataSource responds to to help minimize overhead */
     struct {
         unsigned int dataSourceNumberOfCells;
         unsigned int dataSourceCellForIndex;
@@ -133,14 +146,14 @@
     } _gridViewFlags;
 }
 
-@property (nonatomic,assign) id <TOGridViewDataSource>    dataSource;
-@property (nonatomic,assign) id <TOGridViewDelegate>      delegate;
-@property (nonatomic,strong) UIView                       *headerView;
-@property (nonatomic,strong) UIView                       *backgroundView;
-@property (nonatomic,assign) BOOL                         editing;
-@property (nonatomic,assign) BOOL                         nonRetinaRenderContexts;
-@property (nonatomic,assign) NSInteger                    dragScrollBoundaryDistance;
-@property (nonatomic,assign) CGFloat                      dragScrollMaxVelocity;
+@property (nonatomic,assign) id <TOGridViewDataSource>    dataSource;                   /* The object that will provide the grid view with data. */
+@property (nonatomic,assign) id <TOGridViewDelegate>      delegate;                     /* The object that the grid view will send events to. */
+@property (nonatomic,strong) UIView                       *headerView;                  /* A UIView placed at the top of the grid view */
+@property (nonatomic,strong) UIView                       *backgroundView;              /* A UIView placed behind the grid view and locked so it won't scroll */
+@property (nonatomic,assign) BOOL                         editing;                      /* Whether the grid view is in an editing state now. */
+@property (nonatomic,assign) BOOL                         nonRetinaRenderContexts;      /* If the grid view has a lot of complex cells, setting this can help boost performance at a visual expense.*/
+@property (nonatomic,assign) NSInteger                    dragScrollBoundaryDistance;   /* The distance, in points between the top and bottom of the grid view that will trigger scrolling when dragging a cell. Default is 60 points. */
+@property (nonatomic,assign) CGFloat                      dragScrollMaxVelocity;        /* The maximum velocity the view will scroll at when dragging (Ramped up from 0 the closer the finger is to the boundary). Default is 15 points. */
 
 /* Init the class, and register the cell class to use at the same time */
 - (id)initWithFrame:(CGRect)frame withCellClass: (Class)cellClass;
@@ -171,7 +184,7 @@
 @end
 
 /*  
- The old-skool method of declaring classes accept delegate protocols. Necessary for CAAnimationDelegate. 
+ The old-skool method of declaring classes accepting delegate protocols. Necessary to implement CAAnimationDelegate. 
 */
 @interface TOGridView (CAAnimationDelegate)
 

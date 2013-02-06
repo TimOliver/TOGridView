@@ -43,7 +43,7 @@
 /* Selected occurs when a cell is tapped in edit mode. Multiple cells may be selected at once. */
 - (void)setSelected: (BOOL)selected animated:(BOOL)animated;
 /* Sent when the view needs to transition into its dragging state */
-- (void)setDragging: (BOOL)dragging animated: (BOOL)animated;
+- (void)setDragging: (BOOL)dragging atTouchPoint: (CGPoint)point animated: (BOOL)animated;
 
 /* 
  Ideally, for on-the-fly rendering performance, no views in the content view should
@@ -52,7 +52,7 @@
  this method can be overridden on the cell subclass so it has a chance to set up the views properly. */
 - (void)setNeedsTransparentContent: (BOOL)transparent;
 
-/* Grid view management properties. You probably shouldn't modify these manually. (You can try. It might be hilarious XD) */
+/* Grid view management properties. You probably shouldn't modify these directly. (You can try. It might be hilarious. XD) */
 @property (nonatomic, assign)   NSUInteger index;
 @property (nonatomic, weak)     TOGridView *gridView;
 

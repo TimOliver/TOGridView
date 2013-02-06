@@ -46,6 +46,7 @@
 {    
     if (self = [super initWithFrame: frame])
     {
+        //Set up default state for this cell view
         self.backgroundColor = [UIColor whiteColor];
         self.autoresizesSubviews = YES;
         self.exclusiveTouch = YES;
@@ -57,6 +58,7 @@
 
 - (void)dealloc
 {
+    //remove soft references on dealloc
     _gridView = nil;
 }
 
@@ -66,7 +68,7 @@
 {
     [self setEditing: animated];
     
-    //Mainly for use if the subclass wants to do any animation transitions
+    //Mainly for use if the subclass wants to do any animation transitions upon entering/exiting edit mode
 }
 
 /* Called when a cell is tapped and/or subsequently released to add a highlight effect. */
@@ -74,7 +76,7 @@
 {
     _isHighlighted = highlighted;
     
-    //skip this if we haven't got a background view supplied
+    //skip this if we haven't got a highlighted background view supplied
     if( _highlightedBackgroundView == nil )
         return;
     
@@ -115,6 +117,7 @@
             }
         }];
         
+        //set the content view to unhighlighted about halfway through the animation
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (ANIMATION_TIME*0.5f) * NSEC_PER_SEC), dispatch_get_current_queue(), ^{
             [self setHighlighted: _isHighlighted];
         });
@@ -138,31 +141,43 @@
     }
 }
 
-- (void)setDragging: (BOOL)dragging animated: (BOOL)animated
+- (void)setDragging: (BOOL)dragging atTouchPoint: (CGPoint)point animated: (BOOL)animated
 {
     [self.superview bringSubviewToFront: self];
     
-    CGAffineTransform originTransform = CGAffineTransformIdentity;
-    CGAffineTransform destTransform = CGAffineTransformScale(self.transform, 1.1f, 1.1f);
+    //The location fo the touch event in relation to this cell (as TouchPoint is relative to the scroll view)
+    CGPoint touchPointInCell = [self.superview convertPoint: point toView: self];
     
+    //The original transformation state and a slightly scaled version
+    CGAffineTransform originTransform = CGAffineTransformIdentity;
+    CGAffineTransform destTransform = CGAffineTransformScale(CGAffineTransformIdentity, 1.1f, 1.1f);
+    
+    //The original alpha (fully opaque) and slightly transparent 
     CGFloat originAlpha = 1.0f;
     CGFloat destAlpha = 0.75;
     
+    //the original anchor point (directly in the middle of this view) and the new one
+    CGPoint originAnchorPoint = CGPointMake( 0.5f, 0.5f );
+    CGPoint destAnchorPoint = CGPointMake( touchPointInCell.x / CGRectGetWidth(self.bounds), touchPointInCell.y / CGRectGetHeight(self.bounds) );
+    
     if( animated )
     {
-        /* Set initial state */
+        /* Set initial state before animating */
         if( dragging )
         {
             self.transform = originTransform;
             self.alpha = originAlpha;
+            self.layer.anchorPoint = destAnchorPoint;
+            self.center = point;
         }
         else
         {
-            self.transform = CGAffineTransformIdentity;
             self.transform = destTransform;
             self.alpha = destAlpha;
+            self.center = destAnchorPoint;
         }
         
+        /* Perform the animation */
         [UIView animateWithDuration: 0.25f animations: ^{
             if( dragging )
             {
@@ -173,21 +188,28 @@
             {
                 self.transform = originTransform;
                 self.alpha = originAlpha;
+                self.center = point;
+                self.layer.anchorPoint = originAnchorPoint;
             }
         }];
     }
     else
     {
+        /* Set the new values */
         if( dragging)
         {
             self.transform = originTransform;
             self.transform = destTransform;
             self.alpha = destAlpha;
+            self.layer.anchorPoint = destAnchorPoint;
+            self.center = point;
         }
         else
         {
             self.transform = originTransform;
             self.alpha = originAlpha;
+            self.layer.anchorPoint = originAnchorPoint;
+            self.center = point;
         }
     }
 }

@@ -32,26 +32,27 @@
 - (void)layoutCells;
 - (CGSize)contentSizeOfScrollView;
 - (CGPoint)originOfCellAtIndex: (NSInteger)cellIndex;
+- (CGPoint)centerOfCellAtIndex: (NSInteger)cellIndex;
 - (TOGridViewCell *)cellForIndex: (NSInteger)index;
 - (UIImage *)snapshotOfCellsInRect: (CGRect)rect;
 - (void)invalidateVisibleCells;
 - (void)didPan: (UIPanGestureRecognizer *)gestureRecognizer;
 - (void)fireDragTimer: (id)timer;
-- (void)setCellDraggingState: (BOOL)enabled withCell: (TOGridViewCell *)cell;
 - (TOGridViewCell *)cellInTouch: (UITouch *)touch;
 - (void)fireLongPressTimer: (NSTimer *)timer;
+- (NSInteger)indexOfCellAtPoint: (CGPoint)point;
 
 @end
 
 @implementation TOGridView
 
-@synthesize dataSource = _dataSource,
-            headerView = _headerView,
-            backgroundView = _backgroundView,
-            editing = _isEditing,
-            nonRetinaRenderContexts = _nonRetinaRenderContexts,
-            dragScrollBoundaryDistance = _dragScrollBoundaryDistance,
-            dragScrollMaxVelocity = _dragScrollMaxVelocity;
+@synthesize dataSource                  = _dataSource,
+            headerView                  = _headerView,
+            backgroundView              = _backgroundView,
+            editing                     = _isEditing,
+            nonRetinaRenderContexts     = _nonRetinaRenderContexts,
+            dragScrollBoundaryDistance  = _dragScrollBoundaryDistance,
+            dragScrollMaxVelocity       = _dragScrollMaxVelocity;
 
 #pragma mark -
 #pragma mark View Management
@@ -59,22 +60,30 @@
 {
     if( self = [super initWithFrame: frame] )
     {
+        // Default configuration for the UIScrollView
         self.bounces                = YES;
         self.scrollsToTop           = YES;
         self.backgroundColor        = [UIColor blackColor];
         self.scrollEnabled          = YES;
         self.alwaysBounceVertical   = YES;
+        
+        // Disable the ability to tap multiple cells at the same time. (Otherwise it gets REALLY messy)
         self.multipleTouchEnabled   = NO;
         self.exclusiveTouch         = YES;
         
+        // The sets to handle the recycling and repurposing/reuse of cells
         _recycledCells              = [NSMutableSet new];
         _visibleCells               = [NSMutableSet new];
+        
+        // The default class used to instantiate new cells
         _cellClass                  = [TOGridViewCell class];
         
+        // Default settings for when dragging cells near the boundaries of the grid view
         _dragScrollBoundaryDistance = 60;
         _dragScrollMaxVelocity      = 15;
         
         _longPressIndex             = -1;
+        _cellIndexBeingDraggedOver  = -1;
     }
     
     return self;
@@ -201,6 +210,16 @@
     return origin;
 }
 
+- (CGPoint)centerOfCellAtIndex: (NSInteger)cellIndex
+{
+    CGPoint origin = [self originOfCellAtIndex: cellIndex];
+
+    origin.x += (_cellSize.width    * 0.5f);
+    origin.y += (_cellSize.height   * 0.5f);
+    
+    return origin;
+}
+
 - (void)invalidateVisibleCells
 {
     for( TOGridViewCell *cell in _visibleCells )
@@ -210,6 +229,19 @@
     }
     
     [_visibleCells minusSet: _recycledCells];
+}
+
+//Work out which cells this point of space will technically belong to
+- (NSInteger)indexOfCellAtPoint: (CGPoint)point
+{
+    //work out which row we're on
+    NSInteger rowIndex = floor((point.y - (_offsetFromHeader + _cellPaddingInset.height)) / _rowHeight) * _numberOfCellsPerRow;
+    
+    //work out which number on the row we are
+    NSInteger columnIndex = floor((point.x + _cellPaddingInset.width) / CGRectGetWidth(self.bounds) * _numberOfCellsPerRow);
+    
+    //return the cell index
+    return rowIndex + columnIndex;
 }
 
 #pragma mark -
@@ -307,7 +339,8 @@
         //add it to the visible objects set (It's already out of the recycled set at this point)
         [_visibleCells addObject: cell];
         
-        //Make sure the cell is inserted ABOVE any visible background view, but still BELOW the scroller graphic view
+        //Make sure the cell is inserted ABOVE any visible background view, but still BELOW the scroll indicator bar graphic.
+        //(ie, we can't simply call 'addSubiew')
         if( _backgroundView )
             [self insertSubview: cell aboveSubview: _backgroundView];
         else
@@ -335,8 +368,8 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     
     /* 
      Bit of a sneaky hack here. We've got two interesting scenarios happening:
-     The first-gen iPad has a slow GPU (meaning lots of blending runs chuggy), but can bake views to UIImage REALLY fast (presumably because the views are non-Retina)
-     The third-gen iPad has a kickass GPU (meaning tonnes of blending is easy), but its CPU (While faster than the iPad 1), has to cope with rendering retina UIImages.
+     -The first-gen iPad has a slow GPU (meaning lots of blending runs chuggy), but can bake entire views to UIImage REALLY fast (presumably because the views are non-Retina)
+     -The third-gen iPad has a kickass GPU (meaning tonnes of blending is easy), but its CPU (While faster than the iPad 1), has to cope with rendering retina UIImages. When rendering 2 Retina images, the latency is impressively slow
      
      In order to get optimal render time+animation on both platforms, the following is happening:
      - On non-Retina devices, the before and after bitmaps are rendered and the cells are hidden throughout the animation (Only 1 alpha blend is happening, so iPad 1 is happy)
@@ -493,8 +526,8 @@ views over the top of the scrollview, and cross-fade animates between the two fo
 - (void)animationDidStop:(CAAnimation *)anim finished:(BOOL)flag
 {
     /* 
-     This delegate actually gets called about 3 times per animation. So only proceed when it's definitely finished.
-     I'm HOPING there's no way the system can terminate an animation mid-way and not call 'completed' here
+     This delegate actually gets called about 3 times per animation. So only proceed when it's definitely finished up.
+     I'm HOPING there's no way the system can terminate an animation mid-way and then not call the finished flag here. That would suck.
     */
     if( flag == NO )
         return;
@@ -520,8 +553,8 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     UIImage *image = nil;
     
     /* 
-     Testing rendering the context, locked to non-Retina. Even if the iPad 3 only has to render one Retina bitmap,
-     there's still a lot of noticable latency. And when the view is rotating, you can't even really see the Retina graphics.
+     Depending on the number of cells visible at any given point, a noticable speed boost can be given to Retina
+     devices if the images are rendered at non-Retina resolutions (Given how fast these things rotate, it's BARELY noticable)
      */
     UIGraphicsBeginImageContextWithOptions( rect.size, NO, _nonRetinaRenderContexts ? 1.0f : 0.0f );
     {
@@ -553,14 +586,15 @@ views over the top of the scrollview, and cross-fade animates between the two fo
 /* Dequeue a recycled cell for reuse */
 - (TOGridViewCell *)dequeReusableCell
 {
+    //Grab a cell that was previously recycled
     TOGridViewCell *cell = [_recycledCells anyObject];
-    
     if( cell )
     {
         [_recycledCells removeObject: cell];
         return cell;
     }
     
+    //If there are no cells available, create a new one and set it up
     cell = [[_cellClass alloc] initWithFrame: CGRectMake(0, 0, _cellSize.width, _cellSize.height)];
     cell.frame = CGRectMake(0, 0, _cellSize.width, _cellSize.height);
     cell.gridView = self;
@@ -596,6 +630,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     return YES;
 }
 
+/* This is called manually by the delegate object */
 - (void)unhighlightCellAtIndex: (NSInteger)index animated: (BOOL)animated
 {
     TOGridViewCell *cell = [self cellForIndex: index];
@@ -612,49 +647,25 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     offset.y = MIN( self.contentSize.height - CGRectGetHeight(self.bounds), offset.y );
     self.contentOffset = offset;
     
+    /* If we're dragging a cell, update its position inside the scrollView to stick to the user's finger. */
+    /* We can't move the cell outside of this view since that kills the touch events. :( */
+    /* We also can't simply add the bias like we did above since it introduces floating point noise (and the cell starts to move on its own on screen :( ) */
     if( _cellBeingDragged )
     {
-        CGRect frame = _cellBeingDragged.frame;
-        frame.origin.y += _dragScrollBias;
-        _cellBeingDragged.frame = frame;
+        CGPoint center = _cellBeingDragged.center;
+        center.y = _cellDragPoint.y + self.contentOffset.y;
+        _cellBeingDragged.center = center;
     }
-}
-
-- (void)setCellDraggingState: (BOOL)enabled withCell: (TOGridViewCell *)cell
-{
-    [cell.superview bringSubviewToFront: cell];
-    
-    if( enabled )
-        [cell setHighlighted: YES animated: NO];
-    else
-        [cell setHighlighted: NO animated: YES];
-    
-    [UIView animateWithDuration: 0.25 animations: ^{
-        
-        if( enabled )
-        {
-            cell.alpha = 0.75f;
-            cell.transform = CGAffineTransformScale(cell.transform, 1.1f, 1.1f);
-        }
-        else
-        {
-            cell.alpha = 1.0f;
-            cell.transform = CGAffineTransformIdentity;
-            
-            CGRect newFrame = cell.frame;
-            newFrame.origin = [self originOfCellAtIndex: cell.index];
-            cell.frame = newFrame;
-        }
-    
-    }];
 }
 
 #pragma mark -
 #pragma mark Cell Interactions Handler
 - (TOGridViewCell *)cellInTouch:(UITouch *)touch
 {
+    //start off with the view we directly hit with the UITouch
     UIView *view = [touch view];
-    //traverse hierarchy to see if we hit a cell
+    
+    //traverse hierarchy to see if we hit inside a cell
     TOGridViewCell *cell = nil;
     do
     {
@@ -669,17 +680,19 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     return cell;
 }
 
+/* touchesBagan is initially called when we first touch this view on the screen. There is no delay */
 - (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event
 {
-    UITouch *touch = [touches anyObject];
-    TOGridViewCell *cell = [self cellInTouch: touch];
-
+    //reset the long press counter
     _longPressIndex = -1;
     
+    UITouch *touch = [touches anyObject];
+    TOGridViewCell *cell = [self cellInTouch: touch];
     if( cell )
     {
         [cell setHighlighted: YES animated: NO];
         
+        //if we're set up to receive a long-press tap event, fire the timer now
         if( (_isEditing == NO && _gridViewFlags.delegateDidLongTapCell) || (_isEditing && _gridViewFlags.dataSourceCanMoveCell) )
             _longPressTimer = [NSTimer scheduledTimerWithTimeInterval: LONG_PRESS_TIME target: self selector: @selector(fireLongPressTimer:) userInfo: touch repeats: NO];
     }
@@ -695,19 +708,30 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     if( _isEditing == NO )
     {
         [self.delegate gridView: self didLongTapCellAtIndex: cell.index];
+        
+        //let 'touchesEnded' know we already performed the event for this one
         _longPressIndex = cell.index;
     }
     else
     {
-        _cellBeingDragged = cell;
-        [cell setDragging: YES animated: YES];
-        [self setScrollEnabled: NO];
+        BOOL canMove = [self.dataSource gridView: self canMoveCellAtIndex: cell.index];
+        if( canMove == NO )
+            return;
         
-        CGPoint hitPoint = [touch locationInView: cell];
-        _draggedCellOffset = CGSizeMake(hitPoint.x, hitPoint.y );
+        CGPoint hitPoint = [touch locationInView: self];
+        
+        // Hang onto the cell
+        _cellBeingDragged = cell;
+        
+        //make the cell animate out slightly
+        [cell setDragging: YES atTouchPoint:hitPoint animated: YES];
+        
+        //disable the scrollView
+        [self setScrollEnabled: NO];
     }
 }
-    
+
+/* touchesMoved is called when we start panning around the view without releasing our finger */
 - (void)touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event
 {
     UITouch *touch = [touches anyObject];
@@ -715,16 +739,13 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     
     if( _isEditing && _cellBeingDragged )
     {
+        _cellBeingDragged.center = panPoint;
+        
         panPoint.y -= self.bounds.origin.y; //compensate for scroll offset
         panPoint.y = MAX( panPoint.y, 0 ); panPoint.y = MIN( panPoint.y, CGRectGetHeight(self.bounds) ); //clamp to the outer bounds of the view
         
-        if( _cellBeingDragged )
-        {
-            CGPoint center = _cellBeingDragged.center;
-            center.x = panPoint.x - _draggedCellOffset.width;
-            center.y = (panPoint.y - _draggedCellOffset.height);
-            _cellBeingDragged.center = center;
-        }
+        //Save a copy of the translated point for the drag animation below
+        _cellDragPoint = panPoint;
         
         //Determine if the touch location is within the scroll boundaries at either the top or bottom
         if( panPoint.y < _dragScrollBoundaryDistance || panPoint.y > CGRectGetHeight(self.bounds) - _dragScrollBoundaryDistance )
@@ -746,63 +767,67 @@ views over the top of the scrollview, and cross-fade animates between the two fo
             [_dragScrollTimer invalidate];
             _dragScrollTimer = nil;
         }
-                            
-        _cellBeingDragged.frame = CGRectMake( panPoint.x - _draggedCellOffset.width, panPoint.y - _draggedCellOffset.height, CGRectGetWidth(_cellBeingDragged.frame), CGRectGetHeight(_cellBeingDragged.frame) );
     }
         
     [super touchesMoved: touches withEvent: event];
 }
 
+/* touchesEnded is called if the user releases their finger from the device without panning the scroll view (eg a discrete tap and release) */
 - (void)touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event
 {
+    //The cell under our finger
     TOGridViewCell *cell = [self cellInTouch: [touches anyObject]];
     
+    //if we were animating the scroll view at the time, cancel it
+    [_dragScrollTimer invalidate];
+    
+    //if we WEREN'T in edit mode, fire the delegate to say we tapped this cell (But make sure this cell didn't already fire a long press event)
     if( _isEditing == NO )
     {
         if( cell && _gridViewFlags.delegateDidTapCell && cell.index != _longPressIndex )
             [self.delegate gridView: self didTapCellAtIndex: cell.index];
     }
-    else
+    else //if we WERE editing, and were also dragging a cell, commit it to its new location
     {
         if( _cellBeingDragged )
         {
-            [_cellBeingDragged setDragging: NO animated: YES];
+            [_cellBeingDragged setDragging: NO atTouchPoint: [self centerOfCellAtIndex: _cellBeingDragged.index] animated: YES];
             _cellBeingDragged = nil;
             
             [self setScrollEnabled: YES];
         }
     }
     
+    //kill the tap and hold timer if it was present
     [_longPressTimer invalidate];
     
     [super touchesEnded: touches withEvent: event];
 }
 
+/* touchesCancelled is usually called if the user tapped down, but then starting scrolling the UIScrollView. (Or potentially, if the user rotates the device) */
+/* This will relinquish any state control we had on any cells. */
 - (void)touchesCancelled:(NSSet *)touches withEvent:(UIEvent *)event
 {
+    //The cell that was under our finger at the time
     TOGridViewCell *cell = [self cellInTouch: [touches anyObject]];
     
+    //if there was actually a cell, cancel its highlighted state
     if( cell )
         [cell setHighlighted: NO animated: NO];
     
+    //If we were in the middle of dragging a cell, kill it
     if( _isEditing && _cellBeingDragged )
     {
-        [_cellBeingDragged setDragging: NO animated: NO];
+        [_cellBeingDragged setDragging: NO atTouchPoint: [self centerOfCellAtIndex: _cellBeingDragged.index] animated: NO];
         _cellBeingDragged = nil;
         
         [self setScrollEnabled: YES];
     }
     
+    //if we were tapping and holding a cell, kill that
     [_longPressTimer invalidate];
-    [super touchesCancelled: touches withEvent: event];
-}
-
-- (void)_gridViewCellDidPan:(UIPanGestureRecognizer *)panGestureRecognizer
-{
-    if( _cellBeingDragged == nil )
-        return;
     
-    CGPoint panPoint = [panGestureRecognizer locationInView: self];
+    [super touchesCancelled: touches withEvent: event];
 }
 
 #pragma mark -
@@ -814,6 +839,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     
     [super setDelegate: delegate];
     
+    //Update the flags with the state of the new delegate
     _gridViewFlags.delegateDecorationView       = [self.delegate respondsToSelector: @selector(gridView:decorationViewForRowWithIndex:)];
     _gridViewFlags.delegateInnerPadding         = [self.delegate respondsToSelector: @selector(innerPaddingForGridView:)];
     _gridViewFlags.delegateNumberOfCellsPerRow  = [self.delegate respondsToSelector: @selector(numberOfCellsPerRowForGridView:)];
@@ -830,6 +856,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     
     _dataSource = dataSource;
     
+    //Update the flags with the current state of the data source
     _gridViewFlags.dataSourceCellForIndex       = [_dataSource respondsToSelector: @selector(gridView:cellForIndex:)];
     _gridViewFlags.dataSourceNumberOfCells      = [_dataSource respondsToSelector: @selector(numberOfCellsInGridView:)];
     _gridViewFlags.dataSourceCanEditCell        = [_dataSource respondsToSelector: @selector(gridView:canEditCellAtIndex:)];
@@ -841,16 +868,22 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     if( _headerView == headerView )
         return;
     
+    //remove the older header view and set up the new header view
     [_headerView removeFromSuperview];
     _headerView = headerView;
     _headerView.frame = CGRectMake( 0, 0, CGRectGetWidth(_headerView.frame), CGRectGetHeight(_headerView.frame));
     _headerView.autoresizingMask = UIViewAutoresizingFlexibleWidth;
     
+    //Set the origin of the first cell to be beneath this header view
     _offsetFromHeader = CGRectGetHeight(headerView.bounds);
     
+    //add the view to the scroll view
     [self addSubview: _headerView];
     
+    //reset the size of the scroll view to account for this new header views
     self.contentSize = [self contentSizeOfScrollView];
+    
+    //update any and all visible cells as well
     [self invalidateVisibleCells];
     [self layoutCells];
 }
@@ -859,12 +892,14 @@ views over the top of the scrollview, and cross-fade animates between the two fo
 {
     if( _backgroundView == backgroundView )
         return;
+    
+    //remove the old background view and set up the new one
     [_backgroundView removeFromSuperview];
     _backgroundView = backgroundView;
-    
     _backgroundView.autoresizingMask = UIViewAutoresizingFlexibleHeight | UIViewAutoresizingFlexibleWidth;
     _backgroundView.frame = self.bounds;
     
+    //make sure to insert it BELOW any visible cells
     [self insertSubview: _backgroundView atIndex: 0];
 }
 
@@ -885,6 +920,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
 {
     _isEditing = editing;
     
+    /* If we ended editing, make sure to kill the scroll timer. */
     if( !_isEditing )
     {
         [_dragScrollTimer invalidate];

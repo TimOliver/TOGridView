@@ -7,26 +7,13 @@
          shouldBeEnabled = "No"
          ignoreCount = "0"
          continueAfterRunningActions = "No"
-         filePath = "TOGridView/TOGridView.m"
-         timestampString = "380986667.993555"
+         filePath = "TOGridView/TOGridViewCell.m"
+         timestampString = "381840017.084343"
          startingColumnNumber = "9223372036854775807"
          endingColumnNumber = "9223372036854775807"
-         startingLineNumber = "707"
-         endingLineNumber = "707"
-         landmarkName = "-fireLongPressTimer:"
-         landmarkType = "5">
-      </FileBreakpoint>
-      <FileBreakpoint
-         shouldBeEnabled = "No"
-         ignoreCount = "0"
-         continueAfterRunningActions = "No"
-         filePath = "TOGridView/TOGridView.m"
-         timestampString = "380987604.72764"
-         startingColumnNumber = "9223372036854775807"
-         endingColumnNumber = "9223372036854775807"
-         startingLineNumber = "750"
-         endingLineNumber = "750"
-         landmarkName = "-touchesMoved:withEvent:"
+         startingLineNumber = "163"
+         endingLineNumber = "163"
+         landmarkName = "-setDragging:atTouchPoint:animated:"
          landmarkType = "5">
       </FileBreakpoint>
    </FileBreakpoints>
