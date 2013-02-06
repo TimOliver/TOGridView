@@ -39,7 +39,7 @@
 - (TOGridViewCell *)cellInTouch: (UITouch *)touch;
 - (void)fireLongPressTimer: (NSTimer *)timer;
 - (NSInteger)indexOfCellAtPoint: (CGPoint)point;
-- (void)layoutCellsWithDraggedCellAtIndex: (NSInteger)index;
+- (void)updateCellsLayoutWithDraggedCellAtPoint: (CGPoint)dragPanPoint;
 
 @end
 
@@ -578,9 +578,21 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     return image;
 }
 
-- (void)layoutCellsWithDraggedCellAtIndex: (NSInteger)index
+- (void)updateCellsLayoutWithDraggedCellAtPoint: (CGPoint)dragPanPoint
 {
+    NSInteger currentlyDraggedOverIndex = [self indexOfCellAtPoint: dragPanPoint];
+    if( currentlyDraggedOverIndex == _cellIndexBeingDraggedOver )
+        return;
     
+    CGFloat delay = 0.2f;
+    for( TOGridViewCell *cell in _visibleCells )
+    {
+        [UIView animateWithDuration: 0.25f delay: delay options: 0 animations: ^{
+            
+        }completion: nil];
+    }
+    
+    _cellIndexBeingDraggedOver = currentlyDraggedOverIndex;
 }
 
 #pragma mark -
@@ -747,8 +759,13 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     if( _isEditing && _cellBeingDragged )
     {
         _cellBeingDragged.center = panPoint;
-        _cellIndexBeingDraggedOver = [self indexOfCellAtPoint: panPoint];
         
+        NSInteger indexBeingDraggedOver = [self indexOfCellAtPoint: panPoint];
+        if( indexBeingDraggedOver != _cellIndexBeingDraggedOver )
+        {
+            [self layoutCellsWithDraggedCellAtIndex: indexBeingDraggedOver];
+            
+            
         panPoint.y -= self.bounds.origin.y; //compensate for scroll offset
         panPoint.y = MAX( panPoint.y, 0 ); panPoint.y = MIN( panPoint.y, CGRectGetHeight(self.bounds) ); //clamp to the outer bounds of the view
         
