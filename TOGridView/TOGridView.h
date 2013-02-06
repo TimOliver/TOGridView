@@ -181,6 +181,10 @@
 /* Put the grid view into edit mode (Where cells can be selected and re-ordered.) */
 - (void)setEditing:(BOOL)editing animated:(BOOL)animated;   
 
+/* Used to determine the origin (or center) of a cell at a particular index */
+- (CGPoint)originOfCellAtIndex: (NSInteger)cellIndex;
+- (CGPoint)centerOfCellAtIndex: (NSInteger)cellIndex;
+
 @end
 
 /*  

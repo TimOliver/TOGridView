@@ -174,11 +174,20 @@
         {
             self.transform = destTransform;
             self.alpha = destAlpha;
-            self.center = destAnchorPoint;
+            self.center = point;
+            
+            //set up a CoreAnimation to reset the anchorpoint
+            CABasicAnimation *anchorPointAnimation = [CABasicAnimation animationWithKeyPath: @"anchorPoint"];
+            anchorPointAnimation.duration = 0.2f;
+            anchorPointAnimation.fromValue = [NSValue valueWithCGPoint: destAnchorPoint];
+            anchorPointAnimation.toValue = [NSValue valueWithCGPoint: originAnchorPoint];
+            [self.layer addAnimation: anchorPointAnimation forKey: @"anchorPointAnimation"];
+            self.layer.anchorPoint = originAnchorPoint;
         }
         
         /* Perform the animation */
-        [UIView animateWithDuration: 0.25f animations: ^{
+        [UIView animateWithDuration: 0.20f delay: 0.0f options: UIViewAnimationCurveEaseOut animations:
+         ^{
             if( dragging )
             {
                 self.transform = destTransform;
@@ -188,10 +197,9 @@
             {
                 self.transform = originTransform;
                 self.alpha = originAlpha;
-                self.center = point;
-                self.layer.anchorPoint = originAnchorPoint;
+                self.center = [_gridView centerOfCellAtIndex: self.index];
             }
-        }];
+        } completion: nil];
     }
     else
     {

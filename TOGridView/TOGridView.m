@@ -31,8 +31,6 @@
 - (void)resetCellMetrics;
 - (void)layoutCells;
 - (CGSize)contentSizeOfScrollView;
-- (CGPoint)originOfCellAtIndex: (NSInteger)cellIndex;
-- (CGPoint)centerOfCellAtIndex: (NSInteger)cellIndex;
 - (TOGridViewCell *)cellForIndex: (NSInteger)index;
 - (UIImage *)snapshotOfCellsInRect: (CGRect)rect;
 - (void)invalidateVisibleCells;
@@ -41,6 +39,7 @@
 - (TOGridViewCell *)cellInTouch: (UITouch *)touch;
 - (void)fireLongPressTimer: (NSTimer *)timer;
 - (NSInteger)indexOfCellAtPoint: (CGPoint)point;
+- (void)layoutCellsWithDraggedCellAtIndex: (NSInteger)index;
 
 @end
 
@@ -187,7 +186,6 @@
     
     size.height     = _offsetFromHeader;
     size.height     += _cellPaddingInset.height * 2;
-    
     if( _numberOfCells )
         size.height += (NSInteger)(ceil( (CGFloat)_numberOfCells / (CGFloat)_numberOfCellsPerRow ) * _rowHeight);
     
@@ -264,12 +262,12 @@
         return;
     
     //The official origin of the first row, accounting for the header size and outer padding
-    NSInteger rowOrigin = _offsetFromHeader + _cellPaddingInset.height;
-    CGFloat contentOffsetY = self.bounds.origin.y; //bounds.origin on a scrollview contains the best up-to-date contentOffset
-    NSInteger numberOfRows = floor(_numberOfCells / _numberOfCellsPerRow);
+    NSInteger   rowOrigin           = _offsetFromHeader + _cellPaddingInset.height;
+    CGFloat     contentOffsetY      = self.bounds.origin.y; //bounds.origin on a scrollview contains the best up-to-date contentOffset
+    NSInteger   numberOfRows        = floor(_numberOfCells / _numberOfCellsPerRow);
     
-    NSInteger firstVisibleRow   = floor((contentOffsetY-rowOrigin) / _rowHeight);
-    NSInteger lastVisibleRow    = floor(((contentOffsetY-rowOrigin)+CGRectGetHeight(self.bounds))/ _rowHeight);
+    NSInteger   firstVisibleRow     = floor((contentOffsetY-rowOrigin) / _rowHeight);
+    NSInteger   lastVisibleRow      = floor(((contentOffsetY-rowOrigin)+CGRectGetHeight(self.bounds))/ _rowHeight);
     
     //make sure there are actually some visible rows
     if( lastVisibleRow >= 0 && firstVisibleRow <= numberOfRows )
@@ -580,6 +578,11 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     return image;
 }
 
+- (void)layoutCellsWithDraggedCellAtIndex: (NSInteger)index
+{
+    
+}
+
 #pragma mark -
 #pragma mark Cell/Decoration Recycling
 
@@ -646,6 +649,10 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     offset.y = MAX( 0, offset.y ); //Clamp the value so we can't accidentally scroll past the end of the content
     offset.y = MIN( self.contentSize.height - CGRectGetHeight(self.bounds), offset.y );
     self.contentOffset = offset;
+    
+    CGPoint adjustedDragPoint = _cellDragPoint;
+    adjustedDragPoint.y += self.contentOffset.y;
+    _cellIndexBeingDraggedOver = [self indexOfCellAtPoint: adjustedDragPoint];
     
     /* If we're dragging a cell, update its position inside the scrollView to stick to the user's finger. */
     /* We can't move the cell outside of this view since that kills the touch events. :( */
@@ -740,6 +747,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     if( _isEditing && _cellBeingDragged )
     {
         _cellBeingDragged.center = panPoint;
+        _cellIndexBeingDraggedOver = [self indexOfCellAtPoint: panPoint];
         
         panPoint.y -= self.bounds.origin.y; //compensate for scroll offset
         panPoint.y = MAX( panPoint.y, 0 ); panPoint.y = MIN( panPoint.y, CGRectGetHeight(self.bounds) ); //clamp to the outer bounds of the view
@@ -748,7 +756,8 @@ views over the top of the scrollview, and cross-fade animates between the two fo
         _cellDragPoint = panPoint;
         
         //Determine if the touch location is within the scroll boundaries at either the top or bottom
-        if( panPoint.y < _dragScrollBoundaryDistance || panPoint.y > CGRectGetHeight(self.bounds) - _dragScrollBoundaryDistance )
+        if( (panPoint.y < _dragScrollBoundaryDistance && self.contentOffset.y > 0.0f) ||
+            (panPoint.y > CGRectGetHeight(self.bounds) - _dragScrollBoundaryDistance && (self.contentOffset.y < self.contentSize.height - CGRectGetHeight(self.bounds))) )
         {
             //Kickstart a timer that'll fire at 60FPS to dynamically animate the scrollview
             if( _dragScrollTimer == nil )
@@ -775,8 +784,10 @@ views over the top of the scrollview, and cross-fade animates between the two fo
 /* touchesEnded is called if the user releases their finger from the device without panning the scroll view (eg a discrete tap and release) */
 - (void)touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event
 {
+    UITouch *touch = [touches anyObject];
+    
     //The cell under our finger
-    TOGridViewCell *cell = [self cellInTouch: [touches anyObject]];
+    TOGridViewCell *cell = [self cellInTouch: touch];
     
     //if we were animating the scroll view at the time, cancel it
     [_dragScrollTimer invalidate];
@@ -791,7 +802,8 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     {
         if( _cellBeingDragged )
         {
-            [_cellBeingDragged setDragging: NO atTouchPoint: [self centerOfCellAtIndex: _cellBeingDragged.index] animated: YES];
+            [_cellBeingDragged setDragging: NO atTouchPoint: [touch locationInView: self] animated: YES];
+            [_cellBeingDragged setHighlighted: NO animated: YES];
             _cellBeingDragged = nil;
             
             [self setScrollEnabled: YES];
@@ -804,7 +816,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     [super touchesEnded: touches withEvent: event];
 }
 
-/* touchesCancelled is usually called if the user tapped down, but then starting scrolling the UIScrollView. (Or potentially, if the user rotates the device) */
+/* touchesCancelled is usually called if the user tapped down, but then started scrolling the UIScrollView. (Or potentially, if the user rotates the device) */
 /* This will relinquish any state control we had on any cells. */
 - (void)touchesCancelled:(NSSet *)touches withEvent:(UIEvent *)event
 {
