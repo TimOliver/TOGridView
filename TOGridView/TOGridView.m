@@ -239,7 +239,7 @@
     NSInteger columnIndex = floor((point.x + _cellPaddingInset.width) / CGRectGetWidth(self.bounds) * _numberOfCellsPerRow);
     
     //return the cell index
-    return rowIndex + columnIndex;
+    return MAX(0, rowIndex + columnIndex);
 }
 
 #pragma mark -
@@ -584,12 +584,38 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     if( currentlyDraggedOverIndex == _cellIndexBeingDraggedOver )
         return;
     
-    CGFloat delay = 0.2f;
+    CGFloat delay = 0.0f;
     for( TOGridViewCell *cell in _visibleCells )
     {
-        [UIView animateWithDuration: 0.25f delay: delay options: 0 animations: ^{
+        if( cell == _cellBeingDragged )
+            continue;
+        
+        //If the new value is greater, that means we're dragging the icon down
+        if( currentlyDraggedOverIndex > _cellIndexBeingDraggedOver )
+        {
+            if( cell.index > currentlyDraggedOverIndex )
+                continue;
+        }
+        else
+        {
+            if( cell.index < _cellIndexBeingDraggedOver )
+                continue;
+        }
+        
+        [UIView animateWithDuration: 0.25f delay: 0.0f options: 0 animations: ^{
+            CGRect frame = cell.frame;
+        
+            if( currentlyDraggedOverIndex > _cellIndexBeingDraggedOver )
+                cell.index--;
+            else
+                cell.index++;
             
-        }completion: nil];
+            frame.origin = [self originOfCellAtIndex: cell.index];
+            cell.frame = frame;
+            
+        } completion: nil];
+        
+        delay += 0.25f;
     }
     
     _cellIndexBeingDraggedOver = currentlyDraggedOverIndex;
@@ -664,7 +690,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     
     CGPoint adjustedDragPoint = _cellDragPoint;
     adjustedDragPoint.y += self.contentOffset.y;
-    _cellIndexBeingDraggedOver = [self indexOfCellAtPoint: adjustedDragPoint];
+    [self updateCellsLayoutWithDraggedCellAtPoint: adjustedDragPoint];
     
     /* If we're dragging a cell, update its position inside the scrollView to stick to the user's finger. */
     /* We can't move the cell outside of this view since that kills the touch events. :( */
@@ -737,13 +763,18 @@ views over the top of the scrollview, and cross-fade animates between the two fo
         if( canMove == NO )
             return;
         
-        CGPoint hitPoint = [touch locationInView: self];
-        
         // Hang onto the cell
         _cellBeingDragged = cell;
+        _cellIndexBeingDraggedOver = cell.index;
         
         //make the cell animate out slightly
-        [cell setDragging: YES atTouchPoint:hitPoint animated: YES];
+        [cell setDragging: YES animated: YES];
+        
+        CGPoint pointInCell = [touch locationInView: cell];
+        
+        //set the anchor point
+        cell.layer.anchorPoint = CGPointMake( pointInCell.x/CGRectGetWidth(cell.bounds), pointInCell.y/CGRectGetHeight(cell.bounds));
+        cell.center = [touch locationInView: self];
         
         //disable the scrollView
         [self setScrollEnabled: NO];
@@ -758,14 +789,15 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     
     if( _isEditing && _cellBeingDragged )
     {
-        _cellBeingDragged.center = panPoint;
+        /*CGRect frame = _cellBeingDragged.frame;
+        frame.origin = CGPointMake( (panPoint.x-_draggedCellOffset.width)*1.1f, (panPoint.y - _draggedCellOffset.height) );
+        _cellBeingDragged.frame = frame;*/
         
-        NSInteger indexBeingDraggedOver = [self indexOfCellAtPoint: panPoint];
-        if( indexBeingDraggedOver != _cellIndexBeingDraggedOver )
-        {
-            [self layoutCellsWithDraggedCellAtIndex: indexBeingDraggedOver];
-            
-            
+        _cellBeingDragged.center = CGPointMake(panPoint.x + _draggedCellOffset.width, panPoint.y + _draggedCellOffset.height);
+        
+        /* Update the cells behind the one being dragged with new positions */
+        [self updateCellsLayoutWithDraggedCellAtPoint: panPoint];
+        
         panPoint.y -= self.bounds.origin.y; //compensate for scroll offset
         panPoint.y = MAX( panPoint.y, 0 ); panPoint.y = MIN( panPoint.y, CGRectGetHeight(self.bounds) ); //clamp to the outer bounds of the view
         
@@ -819,8 +851,16 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     {
         if( _cellBeingDragged )
         {
-            [_cellBeingDragged setDragging: NO atTouchPoint: [touch locationInView: self] animated: YES];
+            _cellBeingDragged.index = _cellIndexBeingDraggedOver;
+            
+            //Grab the frame, reset the anchor point (Which changes the frame to compensate), and then reapply the frame
+            CGRect frame = _cellBeingDragged.frame;
+            _cellBeingDragged.layer.anchorPoint = CGPointMake(0.5f,0.5f);
+            _cellBeingDragged.frame = frame;
+            
+            [_cellBeingDragged setDragging: NO animated: YES];
             [_cellBeingDragged setHighlighted: NO animated: YES];
+            
             _cellBeingDragged = nil;
             
             [self setScrollEnabled: YES];
@@ -847,7 +887,8 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     //If we were in the middle of dragging a cell, kill it
     if( _isEditing && _cellBeingDragged )
     {
-        [_cellBeingDragged setDragging: NO atTouchPoint: [self centerOfCellAtIndex: _cellBeingDragged.index] animated: NO];
+        _cellBeingDragged.layer.anchorPoint = CGPointMake( 0.5f, 0.5f );
+        [_cellBeingDragged setDragging: NO animated: NO];
         _cellBeingDragged = nil;
         
         [self setScrollEnabled: YES];

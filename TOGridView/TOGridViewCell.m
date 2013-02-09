@@ -141,51 +141,21 @@
     }
 }
 
-- (void)setDragging: (BOOL)dragging atTouchPoint: (CGPoint)point animated: (BOOL)animated
+- (void)setDragging: (BOOL)dragging animated: (BOOL)animated
 {
     [self.superview bringSubviewToFront: self];
-    
-    //The location fo the touch event in relation to this cell (as TouchPoint is relative to the scroll view)
-    CGPoint touchPointInCell = [self.superview convertPoint: point toView: self];
-    
+
     //The original transformation state and a slightly scaled version
     CGAffineTransform originTransform = CGAffineTransformIdentity;
-    CGAffineTransform destTransform = CGAffineTransformScale(CGAffineTransformIdentity, 1.1f, 1.1f);
+    CGAffineTransform destTransform = CGAffineTransformScale(originTransform, 1.1f, 1.1f);
     
     //The original alpha (fully opaque) and slightly transparent 
     CGFloat originAlpha = 1.0f;
-    CGFloat destAlpha = 0.75;
-    
-    //the original anchor point (directly in the middle of this view) and the new one
-    CGPoint originAnchorPoint = CGPointMake( 0.5f, 0.5f );
-    CGPoint destAnchorPoint = CGPointMake( touchPointInCell.x / CGRectGetWidth(self.bounds), touchPointInCell.y / CGRectGetHeight(self.bounds) );
+    CGFloat destAlpha = 0.6f;
     
     if( animated )
     {
-        /* Set initial state before animating */
-        if( dragging )
-        {
-            self.transform = originTransform;
-            self.alpha = originAlpha;
-            self.layer.anchorPoint = destAnchorPoint;
-            self.center = point;
-        }
-        else
-        {
-            self.transform = destTransform;
-            self.alpha = destAlpha;
-            self.center = point;
-            
-            //set up a CoreAnimation to reset the anchorpoint
-            CABasicAnimation *anchorPointAnimation = [CABasicAnimation animationWithKeyPath: @"anchorPoint"];
-            anchorPointAnimation.duration = 0.2f;
-            anchorPointAnimation.fromValue = [NSValue valueWithCGPoint: destAnchorPoint];
-            anchorPointAnimation.toValue = [NSValue valueWithCGPoint: originAnchorPoint];
-            [self.layer addAnimation: anchorPointAnimation forKey: @"anchorPointAnimation"];
-            self.layer.anchorPoint = originAnchorPoint;
-        }
-        
-        /* Perform the animation */
+        //Perform the animation
         [UIView animateWithDuration: 0.20f delay: 0.0f options: UIViewAnimationCurveEaseOut animations:
          ^{
             if( dragging )
@@ -206,18 +176,14 @@
         /* Set the new values */
         if( dragging)
         {
-            self.transform = originTransform;
             self.transform = destTransform;
             self.alpha = destAlpha;
-            self.layer.anchorPoint = destAnchorPoint;
-            self.center = point;
         }
         else
         {
             self.transform = originTransform;
             self.alpha = originAlpha;
-            self.layer.anchorPoint = originAnchorPoint;
-            self.center = point;
+            self.center = [_gridView centerOfCellAtIndex: self.index];
         }
     }
 }
