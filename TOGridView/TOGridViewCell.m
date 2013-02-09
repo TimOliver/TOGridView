@@ -167,7 +167,10 @@
             {
                 self.transform = originTransform;
                 self.alpha = originAlpha;
-                self.center = [_gridView centerOfCellAtIndex: self.index];
+                
+                CGRect frame = self.frame;
+                frame.origin = [_gridView originOfCellAtIndex: self.index];
+                self.frame = frame;
             }
         } completion: nil];
     }
@@ -183,7 +186,10 @@
         {
             self.transform = originTransform;
             self.alpha = originAlpha;
-            self.center = [_gridView centerOfCellAtIndex: self.index];
+            
+            CGRect frame = self.frame;
+            frame.origin = [_gridView originOfCellAtIndex: self.index];
+            self.frame = frame;
         }
     }
 }

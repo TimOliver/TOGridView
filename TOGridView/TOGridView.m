@@ -239,7 +239,7 @@
     NSInteger columnIndex = floor((point.x + _cellPaddingInset.width) / CGRectGetWidth(self.bounds) * _numberOfCellsPerRow);
     
     //return the cell index
-    return MAX(0, rowIndex + columnIndex);
+    return MAX(-1, rowIndex + columnIndex);
 }
 
 #pragma mark -
@@ -324,8 +324,8 @@
         cellFrame.size = _cellSize;
         
         //if there's supposed to be NO padding between the edge of the view and the cell,
-        //and this cell is short by uneven necessity of the number of cells per row (eg, 1024/3 on iPad = 341.333333333),
-        //pad it out
+        //and this cell is short by uneven necessity of the number of cells per row
+        //(eg, 1024/3 on iPad = 341.333333333 pixels per cell :S), pad it out
         if( _cellPaddingInset.width <= 0.0f + FLT_EPSILON && (index+1) % _numberOfCellsPerRow == 0 )
         {
             if( CGRectGetMinX(cellFrame) + CGRectGetWidth(cellFrame) < CGRectGetWidth(self.bounds) + FLT_EPSILON )
@@ -581,41 +581,53 @@ views over the top of the scrollview, and cross-fade animates between the two fo
 - (void)updateCellsLayoutWithDraggedCellAtPoint: (CGPoint)dragPanPoint
 {
     NSInteger currentlyDraggedOverIndex = [self indexOfCellAtPoint: dragPanPoint];
-    if( currentlyDraggedOverIndex == _cellIndexBeingDraggedOver )
+    if( currentlyDraggedOverIndex == _cellIndexBeingDraggedOver || currentlyDraggedOverIndex == -1 )
         return;
     
-    CGFloat delay = 0.0f;
+    //The direction and number of stops we just moved the cell (eg cell 0 to cell 2 is '2')
+    NSInteger offset = -(_cellIndexBeingDraggedOver - currentlyDraggedOverIndex);
+    
     for( TOGridViewCell *cell in _visibleCells )
     {
         if( cell == _cellBeingDragged )
             continue;
         
-        //If the new value is greater, that means we're dragging the icon down
-        if( currentlyDraggedOverIndex > _cellIndexBeingDraggedOver )
+        //If the offset is positive, we dragged the cell forward
+        BOOL found = NO;
+        if( offset > 0 )
         {
-            if( cell.index > currentlyDraggedOverIndex )
-                continue;
+            if( cell.index <= _cellIndexBeingDraggedOver+offset && cell.index > _cellIndexBeingDraggedOver )
+            {
+                cell.index--;
+                found = YES;
+            }
         }
         else
         {
-            if( cell.index < _cellIndexBeingDraggedOver )
-                continue;
+            if( cell.index >= _cellIndexBeingDraggedOver+offset && cell.index < _cellIndexBeingDraggedOver)
+            {
+                cell.index++;
+                found = YES;
+            }
         }
         
-        [UIView animateWithDuration: 0.25f delay: 0.0f options: 0 animations: ^{
-            CGRect frame = cell.frame;
+        //Ignore cells that don't need to animate
+        if( found == NO )
+            continue;
         
-            if( currentlyDraggedOverIndex > _cellIndexBeingDraggedOver )
-                cell.index--;
-            else
-                cell.index++;
+        NSInteger delta = abs(cell.index - _cellIndexBeingDraggedOver);
+        [UIView animateWithDuration: 0.25f delay: 0.05f*delta options: UIViewAnimationCurveEaseInOut animations: ^{
+            CGRect frame = cell.frame;
+            CGFloat y = frame.origin.y;
             
             frame.origin = [self originOfCellAtIndex: cell.index];
-            cell.frame = frame;
             
-        } completion: nil];
-        
-        delay += 0.25f;
+            //if a cell is shifting lines, make sure it renders ABOVE any other cells
+            if( (NSInteger)y != (NSInteger)frame.origin.y )
+                [self insertSubview: cell belowSubview: _cellBeingDragged];
+            
+            cell.frame = frame;
+        }completion: nil];
     }
     
     _cellIndexBeingDraggedOver = currentlyDraggedOverIndex;
@@ -789,10 +801,6 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     
     if( _isEditing && _cellBeingDragged )
     {
-        /*CGRect frame = _cellBeingDragged.frame;
-        frame.origin = CGPointMake( (panPoint.x-_draggedCellOffset.width)*1.1f, (panPoint.y - _draggedCellOffset.height) );
-        _cellBeingDragged.frame = frame;*/
-        
         _cellBeingDragged.center = CGPointMake(panPoint.x + _draggedCellOffset.width, panPoint.y + _draggedCellOffset.height);
         
         /* Update the cells behind the one being dragged with new positions */
