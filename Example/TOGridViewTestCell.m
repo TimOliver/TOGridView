@@ -25,6 +25,8 @@
         UIImage *bgPressed              = [[UIImage alloc] initWithContentsOfFile: [[NSBundle mainBundle] pathForResource: @"CellBGPressed" ofType: @"png"]];
         self.highlightedBackgroundView  = [[UIImageView alloc] initWithImage: [bgPressed resizableImageWithCapInsets: UIEdgeInsetsMake(2, 2, 2, 2)]];
         
+        self.selectedBackgroundView = self.highlightedBackgroundView;
+        
         _textLabel = [[UILabel alloc] initWithFrame: CGRectMake( 10, (frame.size.height/2)-15, 270, 30)];
         _textLabel.textColor = [UIColor colorWithWhite: 0.2f alpha: 1.0f];
         _textLabel.backgroundColor = [UIColor colorWithWhite: 0.96f alpha: 1.0f];

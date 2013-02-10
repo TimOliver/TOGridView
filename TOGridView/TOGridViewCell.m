@@ -116,7 +116,7 @@
                 [self setNeedsTransparentContent: YES];
             }
         }];
-        
+
         //set the content view to unhighlighted about halfway through the animation
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (ANIMATION_TIME*0.5f) * NSEC_PER_SEC), dispatch_get_current_queue(), ^{
             [self setHighlighted: _isHighlighted];
@@ -196,7 +196,70 @@
 
 - (void)setSelected:(BOOL)selected animated:(BOOL)animated
 {
+    _isSelected = selected;
     
+    if( _selectedBackgroundView == nil )
+        return;
+    
+    if( animated )
+    {
+        //cancel any animations in progress
+        [_selectedBackgroundView.layer removeAllAnimations];
+        
+        CGFloat alpha;
+        _selectedBackgroundView.hidden = NO;
+        
+        if( _isSelected )
+        {
+            _selectedBackgroundView.alpha = 0.0f;
+            alpha = 1.0f;
+        }
+        else
+        {
+            _selectedBackgroundView.alpha = 1.0f;
+            alpha = 0.0f;
+            
+            [self setNeedsTransparentContent: YES];
+        }
+        
+        //set the content view to the oppsoite state so we can transition to it
+        [self setSelected: !_isSelected];
+        
+        /* Animate the highlighted background to crossfade */
+        [UIView animateWithDuration: ANIMATION_TIME animations: ^{
+            _selectedBackgroundView.alpha = alpha;
+        }
+        completion: ^(BOOL finished)
+        {
+             if( _isSelected == NO )
+             {
+                 _selectedBackgroundView.hidden = YES;
+                 [self setNeedsTransparentContent: YES];
+             }
+        }];
+        
+        //set the content view to unhighlighted about halfway through the animation
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (ANIMATION_TIME*0.5f) * NSEC_PER_SEC), dispatch_get_current_queue(), ^{
+            [self setSelected: _isSelected];
+        });
+    }
+    else
+    {
+        _selectedBackgroundView.alpha = 1.0f;
+        
+        if( _isSelected )
+        {
+            _selectedBackgroundView.hidden = NO;
+            [self setNeedsTransparentContent: YES];
+        }
+        else
+        {
+            _selectedBackgroundView.hidden = YES;
+            [self setNeedsTransparentContent: NO];
+        }
+        
+        [self setSelected: _isSelected];
+    }
 }
 
 - (void)setNeedsTransparentContent:(BOOL)transparent

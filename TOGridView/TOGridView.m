@@ -137,7 +137,7 @@
     /* Set up an array to track the selected state of each cell */
     _selectedCells = nil;
     _selectedCells = [NSMutableArray arrayWithCapacity: _numberOfCells];
-    for( NSInteger i = 0; i < [_selectedCells count]; i++ )
+    for( NSInteger i = 0; i < _numberOfCells; i++ )
         [_selectedCells addObject: [NSNumber numberWithBool: FALSE]];
 
     /* Perform a redraw operation */
@@ -337,6 +337,10 @@
         cell.index = index;
         
         [cell setHighlighted: NO animated: NO];
+        
+        //if the cell has been selected, highlight it
+        if( _isEditing && [[_selectedCells objectAtIndex: cell.index] boolValue] == YES )
+            [cell setSelected: YES animated: NO];
         
         //make sure the frame is still properly set
         CGRect cellFrame;
@@ -731,11 +735,16 @@ views over the top of the scrollview, and cross-fade animates between the two fo
         }
     }
     
-    //go through each new cell, and see if it's within the visible range onscreen
+    //go through each new cell, and set it up
     NSRange visibleCells = [self visibleCells];
     for( NSNumber *number in indices )
     {
         NSInteger newIndex = [number integerValue];
+        
+        //set up the master array of selected cells to account for these new cells
+        [_selectedCells insertObject: [NSNumber numberWithBool: NO] atIndex: newIndex];
+        
+        //if the cell is within the visible screen region, dequeue a new cell and make it display
         if( newIndex >= visibleCells.location && newIndex < visibleCells.location+visibleCells.length)
         {
             //if it is, poll the data source to create it and then add it in
@@ -954,9 +963,28 @@ views over the top of the scrollview, and cross-fade animates between the two fo
         if( cell && _gridViewFlags.delegateDidTapCell && cell.index != _longPressIndex )
             [self.delegate gridView: self didTapCellAtIndex: cell.index];
     }
-    else //if we WERE editing, and were also dragging a cell, commit it to its new location
+    else //if we WERE editing
     {
-        if( _cellBeingDragged )
+        //if there's no cell being dragged (ie, we just tapped a cell), set it to 'selected'
+        if( _cellBeingDragged == nil )
+        {
+            NSNumber *selectedNumber = [_selectedCells objectAtIndex: cell.index];
+            
+            //unhighlight it
+            [cell setHighlighted: NO animated: NO];
+            
+            //set it to be either selected or unselected
+            if( [selectedNumber boolValue] == NO )
+                [cell setSelected: YES animated: NO];
+            else
+                [cell setSelected: NO animated: NO];
+            
+            [_selectedCells removeObjectAtIndex: cell.index];
+            [_selectedCells insertObject: [NSNumber numberWithBool: !([selectedNumber boolValue]) ] atIndex: cell.index];
+            
+            NSLog( @"%@", _selectedCells );
+        }
+        else //if there IS a cell being dragged about, handle that now
         {
             if( _gridViewFlags.delegateDidMoveCell )
                 [self.delegate gridView: self didMoveCellAtIndex: _cellBeingDragged.index toIndex: _cellIndexBeingDraggedOver];
@@ -1135,6 +1163,16 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     {
         [_dragScrollTimer invalidate];
         _dragScrollTimer = nil;
+        
+        //deselect any selected cells
+        for( TOGridViewCell *cell in _visibleCells )
+            [cell setSelected: NO animated: NO];
+        
+        //reset the list of selected cells
+        _selectedCells = nil;
+        _selectedCells = [NSMutableArray array];
+        for( NSInteger i=0; i<_numberOfCells; i++ )
+            [_selectedCells addObject: [NSNumber numberWithBool: NO]];
     }
 }
 
