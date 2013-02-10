@@ -163,7 +163,7 @@
 
 - (void)gridView: (TOGridView *)gridView didMoveCellAtIndex:(NSInteger)prevIndex toIndex:(NSInteger)newIndex
 {
-    //reshuffle the numbers in the 
+    //reshuffle the numbers in the data source to match the new order
     NSNumber *number = [_numbers objectAtIndex: prevIndex];
     [_numbers removeObject: number];
     [_numbers insertObject: number atIndex: newIndex];

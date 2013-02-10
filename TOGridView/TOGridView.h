@@ -68,7 +68,7 @@
     /* The range of cells visible now */
     NSRange     _visibleCellRange;
     
-    /* Stores for cells in use, and ones in stadby */
+    /* Stores for cells in use, and ones in standby */
     NSMutableSet *_recycledCells;
     NSMutableSet *_visibleCells;
 
@@ -129,7 +129,7 @@
     /* The distance between the cell's origin and the user's touch position */
     CGSize _draggedCellOffset;
     
-    /* Store what protocol methods the delegate/dataSource responds to to help minimize overhead */
+    /* Store what protocol methods the delegate/dataSource implement to help reduce overhead involved with checking that at runtime */
     struct {
         unsigned int dataSourceNumberOfCells;
         unsigned int dataSourceCellForIndex;
@@ -153,11 +153,11 @@
 @property (nonatomic,strong) UIView                       *headerView;                  /* A UIView placed at the top of the grid view */
 @property (nonatomic,strong) UIView                       *backgroundView;              /* A UIView placed behind the grid view and locked so it won't scroll */
 @property (nonatomic,assign) BOOL                         editing;                      /* Whether the grid view is in an editing state now. */
-@property (nonatomic,assign) BOOL                         nonRetinaRenderContexts;      /* If the grid view has a lot of complex cells, setting this can help boost performance at a visual expense.*/
-@property (nonatomic,assign) NSInteger                    dragScrollBoundaryDistance;   /* The distance, in points between the top and bottom of the grid view that will trigger scrolling when dragging a cell. Default is 60 points. */
-@property (nonatomic,assign) CGFloat                      dragScrollMaxVelocity;        /* The maximum velocity the view will scroll at when dragging (Ramped up from 0 the closer the finger is to the boundary). Default is 15 points. */
+@property (nonatomic,assign) BOOL                         nonRetinaRenderContexts;      /* If the grid view has a lot of complex cells, setting this can help boost animation performance at a visual expense on Retina devices. */
+@property (nonatomic,assign) NSInteger                    dragScrollBoundaryDistance;   /* The distance, in points, from the top of the view downwards that will trigger auto-scrolling when dragging a cell (Same for the bottom). Default is 60 points. */
+@property (nonatomic,assign) CGFloat                      dragScrollMaxVelocity;        /* The maximum velocity the view will scroll at when dragging (Ramped up from 0 the closer the finger is to the view boundary). Default is 15 points. */
 
-/* Init the class, and register the cell class to use at the same time */
+/* Init the class, and register the cell class to use at the same time. (Else the default TOGridViewCell class is implemented) */
 - (id)initWithFrame:(CGRect)frame withCellClass: (Class)cellClass;
 
 /* Register the class that is used to spawn new cell views */
@@ -165,6 +165,8 @@
 
 /* Dequeue a recycled cell for reuse */
 - (TOGridViewCell *)dequeReusableCell;
+
+/* Dequeue a recycled decoration view for reuse */
 - (UIView *)dequeueReusableDecorationView;
 
 /* Add/delete cells */
@@ -174,7 +176,7 @@
 - (BOOL)deleteCellAtIndex: (NSInteger)index animated: (BOOL)animated;
 - (BOOL)deleteCellsAtIndicies: (NSArray *)indices animated: (BOOL)animated;
 
-/* Unhighlight a cell after it had been tapped */
+/* Unhighlight a cell after it had been tapped (As opposed to 'deselecting' in edit mode) */
 - (void)unhighlightCellAtIndex: (NSInteger)index animated: (BOOL)animated;
 
 /* Reload the entire table */
@@ -185,7 +187,6 @@
 
 /* Used to determine the origin (or center) of a cell at a particular index */
 - (CGPoint)originOfCellAtIndex: (NSInteger)cellIndex;
-- (CGPoint)centerOfCellAtIndex: (NSInteger)cellIndex;
 
 @end
 

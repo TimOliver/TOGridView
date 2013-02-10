@@ -208,16 +208,6 @@
     return origin;
 }
 
-- (CGPoint)centerOfCellAtIndex: (NSInteger)cellIndex
-{
-    CGPoint origin = [self originOfCellAtIndex: cellIndex];
-
-    origin.x += (_cellSize.width    * 0.5f);
-    origin.y += (_cellSize.height   * 0.5f);
-    
-    return origin;
-}
-
 - (void)invalidateVisibleCells
 {
     for( TOGridViewCell *cell in _visibleCells )
@@ -469,7 +459,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
         
         for( TOGridViewCell *cell in _visibleCells )
         {
-            //disable EVERY ANIMATION that may have been applied to each cell and its sub-cells in the interim.
+            //disable EVERY ANIMATION that may have been applied to each cell and its subviews in the interim.
             //(This includes content, background, and highlight views)
             [cell.layer removeAllAnimations];
             for( UIView *subview in cell.subviews )
