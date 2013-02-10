@@ -981,8 +981,6 @@ views over the top of the scrollview, and cross-fade animates between the two fo
             
             [_selectedCells removeObjectAtIndex: cell.index];
             [_selectedCells insertObject: [NSNumber numberWithBool: !([selectedNumber boolValue]) ] atIndex: cell.index];
-            
-            NSLog( @"%@", _selectedCells );
         }
         else //if there IS a cell being dragged about, handle that now
         {
