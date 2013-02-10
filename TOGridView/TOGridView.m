@@ -1026,6 +1026,18 @@ views over the top of the scrollview, and cross-fade animates between the two fo
         [self invalidateVisibleCells];
         [self resetCellMetrics];
     }
+    
+    //If we were in the middle of dragging a cell, kill it
+    if( _isEditing && _cellBeingDragged )
+    {
+        _cellBeingDragged.layer.anchorPoint = CGPointMake( 0.5f, 0.5f );
+        [_cellBeingDragged setDragging: NO animated: NO];
+        _cellBeingDragged = nil;
+        
+        _cellIndexBeingDraggedOver = -1;
+        
+        [self setScrollEnabled: YES];
+    }
 }
 
 - (void)setEditing:(BOOL)editing animated:(BOOL)animated
