@@ -626,6 +626,16 @@ views over the top of the scrollview, and cross-fade animates between the two fo
             if( (NSInteger)y != (NSInteger)frame.origin.y )
                 [self insertSubview: cell belowSubview: _cellBeingDragged];
             
+            //if the grid view is having to do a small amount of cell padding (eg, if the width of each cell doesn't fit the screen properly)
+            //reset the cell here
+            if( _cellPaddingInset.width <= 0.0f + FLT_EPSILON && (cell.index+1) % _numberOfCellsPerRow == 0 )
+            {
+                if( CGRectGetMinX(frame) + CGRectGetWidth(frame) < CGRectGetWidth(self.bounds) + FLT_EPSILON )
+                    frame.size.width = CGRectGetWidth(self.bounds) - CGRectGetMinX(frame);
+            }
+            else
+                frame.size.width = _cellSize.width;
+            
             cell.frame = frame;
         }completion: nil];
     }
@@ -861,16 +871,37 @@ views over the top of the scrollview, and cross-fade animates between the two fo
         {
             _cellBeingDragged.index = _cellIndexBeingDraggedOver;
             
-            //Grab the frame, reset the anchor point (Which changes the frame to compensate), and then reapply the frame
+            //Grab the frame, reset the anchor point back to default (Which changes the frame to compensate), and then reapply the frame
             CGRect frame = _cellBeingDragged.frame;
             _cellBeingDragged.layer.anchorPoint = CGPointMake(0.5f,0.5f);
             _cellBeingDragged.frame = frame;
             
+            //Temporarily revert the transformation back to default, and make sure to properly resize the cell
+            //(In case it's slightly longer/shorter due to padding issues)
+            CGAffineTransform transform = _cellBeingDragged.transform;
+            _cellBeingDragged.transform = CGAffineTransformIdentity;
+            
+            frame = _cellBeingDragged.frame;
+            if( _cellPaddingInset.width <= 0.0f + FLT_EPSILON && (_cellBeingDragged.index+1) % _numberOfCellsPerRow == 0 )
+            {
+                CGPoint org = [self originOfCellAtIndex: _cellBeingDragged.index];
+                if( CGRectGetMinX(frame) + CGRectGetWidth(frame) < CGRectGetWidth(self.bounds) + FLT_EPSILON )
+                    frame.size.width = (CGRectGetWidth(self.bounds) - org.x);
+            }
+            else
+                frame.size.width = _cellSize.width;
+            
+            _cellBeingDragged.frame = frame;
+            _cellBeingDragged.transform = transform;
+            
+            //animate it zipping back, and deselecting
             [_cellBeingDragged setDragging: NO animated: YES];
             [_cellBeingDragged setHighlighted: NO animated: YES];
             
+            //reset the cell handle for next time
             _cellBeingDragged = nil;
             
+            //re-enable scrolling
             [self setScrollEnabled: YES];
         }
     }
