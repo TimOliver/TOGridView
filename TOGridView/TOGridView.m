@@ -684,7 +684,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
 
 - (BOOL)insertCellsAtIndicies: (NSArray *)indices animated: (BOOL)animated
 {
-    //Make sure that the dataSource has already updated the number of cells, or this will suck
+    //Make sure that the dataSource has already updated the number of cells, or this will cause utter chaos.
     NSInteger newNumberOfCells = [_dataSource numberOfCellsInGridView: self];
     if( newNumberOfCells < _numberOfCells + [indices count] )
         [NSException raise: @"Invalid dataSource!" format: @"Data source needs to be updated before new cells can be inserted. Number of cells was %d when it needed to be %d", _numberOfCells, newNumberOfCells ];
@@ -708,10 +708,23 @@ views over the top of the scrollview, and cross-fade animates between the two fo
         __block CGRect frame = cell.frame;
         frame.size = [self sizeOfCellAtIndex: cell.index];
         
-        [UIView animateWithDuration: 0.2f animations: ^{
+        if( animated )
+        {
+            [UIView animateWithDuration: 0.2f animations: ^{
+                frame.origin = [self originOfCellAtIndex: cell.index];
+                
+                //if we're sliding down a row, bring this cell to the front so it displays over the others
+                if( (NSInteger)frame.origin.y != (NSInteger)cell.frame.origin.y )
+                    [self bringSubviewToFront: cell];
+                
+                cell.frame = frame;
+            }];
+        }
+        else
+        {
             frame.origin = [self originOfCellAtIndex: cell.index];
             cell.frame = frame;
-        }];
+        }
     }
     
     NSRange visibleCells = [self visibleCells];
@@ -730,10 +743,13 @@ views over the top of the scrollview, and cross-fade animates between the two fo
 
             [self addSubview: newCell];
             
-            newCell.alpha = 0.0f;
-            [UIView animateWithDuration: 0.3f animations: ^{
-                newCell.alpha = 1.0f;
-            }];
+            if( animated )
+            {
+                newCell.alpha = 0.0f;
+                [UIView animateWithDuration: 0.3f animations: ^{
+                    newCell.alpha = 1.0f;
+                }];
+            }
         }
     }
     
