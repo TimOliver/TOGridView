@@ -869,6 +869,9 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     {
         if( _cellBeingDragged )
         {
+            if( _gridViewFlags.delegateDidMoveCell )
+                [self.delegate gridView: self didMoveCellAtIndex: _cellBeingDragged.index toIndex: _cellIndexBeingDraggedOver];
+            
             _cellBeingDragged.index = _cellIndexBeingDraggedOver;
             
             //Grab the frame, reset the anchor point back to default (Which changes the frame to compensate), and then reapply the frame
@@ -959,6 +962,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     _gridViewFlags.delegateHeightOfRows         = [self.delegate respondsToSelector: @selector(heightOfRowsInGridView:)];
     _gridViewFlags.delegateDidLongTapCell       = [self.delegate respondsToSelector: @selector(gridView:didLongTapCellAtIndex:)];
     _gridViewFlags.delegateDidTapCell           = [self.delegate respondsToSelector: @selector(gridView:didTapCellAtIndex:)];
+    _gridViewFlags.delegateDidMoveCell          = [self.delegate respondsToSelector: @selector(gridView:didMoveCellAtIndex:toIndex:)];
 }
 
 - (void)setDataSource:(id<TOGridViewDataSource>)dataSource

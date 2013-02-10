@@ -38,6 +38,10 @@
 {
     [super viewDidLoad];
 
+    _numbers = [NSMutableArray new];
+    for( NSInteger i=0; i < 60; i++ )
+        [_numbers addObject: [NSNumber numberWithInt:i]];
+    
 	_gridView = [[TOGridView alloc] initWithFrame: self.view.bounds withCellClass: [TOGridViewTestCell class]];
     _gridView.autoresizingMask = UIViewAutoresizingFlexibleHeight | UIViewAutoresizingFlexibleWidth;
     _gridView.delegate = self;
@@ -157,18 +161,26 @@
     NSLog( @"Cell %d long tapped!", index );
 }
 
+- (void)gridView: (TOGridView *)gridView didMoveCellAtIndex:(NSInteger)prevIndex toIndex:(NSInteger)newIndex
+{
+    //reshuffle the numbers in the 
+    NSNumber *number = [_numbers objectAtIndex: prevIndex];
+    [_numbers removeObject: number];
+    [_numbers insertObject: number atIndex: newIndex];
+}
+
 #pragma mark -
 #pragma mark Data Source
 - (NSUInteger)numberOfCellsInGridView:(TOGridView *)gridView
 {
-    return 65;
+    return [_numbers count];
 }
 
 - (TOGridViewCell *)gridView:(TOGridView *)gridView cellForIndex:(NSInteger)cellIndex
 {
     TOGridViewTestCell *cell = (TOGridViewTestCell *)[_gridView dequeReusableCell];
     
-    cell.textLabel.text = [NSString stringWithFormat: @"Cell %d", cellIndex];
+    cell.textLabel.text = [NSString stringWithFormat: @"Cell %d", [[_numbers objectAtIndex: cellIndex] intValue]];
     return cell;
 }
 

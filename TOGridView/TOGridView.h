@@ -57,13 +57,14 @@
 - (NSUInteger)offsetOfCellsInRowsInGridView: (TOGridView *)gridView;
 - (void)gridView: (TOGridView *)gridView didTapCellAtIndex: (NSUInteger)index;
 - (void)gridView: (TOGridView *)gridView didLongTapCellAtIndex: (NSInteger)index;
+- (void)gridView: (TOGridView *)gridView didMoveCellAtIndex: (NSInteger)prevIndex toIndex: (NSInteger)newIndex;
 
 @end
 
 @interface TOGridView : UIScrollView <UIGestureRecognizerDelegate> {
     /* The class that is used to spawn cells */
     Class       _cellClass;
-    
+
     /* The range of cells visible now */
     NSRange     _visibleCellRange;
     
@@ -143,6 +144,7 @@
         unsigned int delegateOffsetOfCellInRow;
         unsigned int delegateDidTapCell;
         unsigned int delegateDidLongTapCell;
+        unsigned int delegateDidMoveCell;
     } _gridViewFlags;
 }
 

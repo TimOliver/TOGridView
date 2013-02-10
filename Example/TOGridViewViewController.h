@@ -11,6 +11,8 @@
 
 @interface TOGridViewViewController : UIViewController <TOGridViewDataSource, TOGridViewDelegate> {
     TOGridView *_gridView;
+    
+    NSMutableArray *_numbers;
 }
 
 @end
