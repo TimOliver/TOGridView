@@ -308,7 +308,7 @@
         NSInteger index = _visibleCellRange.location+i;
         
         TOGridViewCell *cell = [self cellForIndex: index];
-        if( cell )
+        if( cell || _cellIndexBeingDraggedOver == index ) //if we already have a cell, or the user is currently dragging over a space for a cell
             continue;
         
         //Get the cell with its content setup from the dataSource
@@ -900,6 +900,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
             
             //reset the cell handle for next time
             _cellBeingDragged = nil;
+            _cellIndexBeingDraggedOver = -1;
             
             //re-enable scrolling
             [self setScrollEnabled: YES];
@@ -929,6 +930,8 @@ views over the top of the scrollview, and cross-fade animates between the two fo
         _cellBeingDragged.layer.anchorPoint = CGPointMake( 0.5f, 0.5f );
         [_cellBeingDragged setDragging: NO animated: NO];
         _cellBeingDragged = nil;
+        
+        _cellIndexBeingDraggedOver = -1;
         
         [self setScrollEnabled: YES];
     }
