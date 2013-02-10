@@ -208,6 +208,23 @@
     return origin;
 }
 
+- (CGSize)sizeOfCellAtIndex: (NSInteger)cellIndex
+{
+    CGSize cellSize = _cellSize;
+    
+    //if there's supposed to be NO padding between the edge of the view and the cell,
+    //and this cell is short by uneven necessity of the number of cells per row
+    //(eg, 1024/3 on iPad = 341.333333333 pixels per cell :S), pad it out
+    if( _cellPaddingInset.width <= 0.0f + FLT_EPSILON && (cellIndex+1) % _numberOfCellsPerRow == 0 )
+    {
+        CGPoint org = [self originOfCellAtIndex: _cellBeingDragged.index];
+        if( org.x + cellSize.width < CGRectGetWidth(self.bounds) + FLT_EPSILON )
+            cellSize.width = CGRectGetWidth(self.bounds) - org.x;
+    }
+    
+    return cellSize;
+}
+
 - (void)invalidateVisibleCells
 {
     for( TOGridViewCell *cell in _visibleCells )
@@ -228,8 +245,12 @@
     //work out which number on the row we are
     NSInteger columnIndex = floor((point.x + _cellPaddingInset.width) / CGRectGetWidth(self.bounds) * _numberOfCellsPerRow);
     
+    NSInteger index = rowIndex + columnIndex;
+    index = MAX( -1, index); //if the number of cells is below the start, return -1
+    index = MIN(_numberOfCells-1, index); //cap it at the max number of cells
+    
     //return the cell index
-    return MAX(-1, rowIndex + columnIndex);
+    return index;
 }
 
 #pragma mark -
@@ -245,11 +266,9 @@
     return nil;
 }
 
-/* layoutCells handles all of the recycling/dequeing of cells as the scrollview is scrolling */
-- (void)layoutCells
+- (NSRange)visibleCells
 {
-    if( _numberOfCells == 0 )
-        return;
+    NSRange visibleCellRange;
     
     //The official origin of the first row, accounting for the header size and outer padding
     NSInteger   rowOrigin           = _offsetFromHeader + _cellPaddingInset.height;
@@ -262,17 +281,28 @@
     //make sure there are actually some visible rows
     if( lastVisibleRow >= 0 && firstVisibleRow <= numberOfRows )
     {
-        _visibleCellRange.location  = MAX(0,firstVisibleRow) * _numberOfCellsPerRow;
-        _visibleCellRange.length    = (((lastVisibleRow - MAX(0,firstVisibleRow))+1) * _numberOfCellsPerRow);
-    
-        if( _visibleCellRange.location + _visibleCellRange.length >= _numberOfCells )
-            _visibleCellRange.length = _numberOfCells - _visibleCellRange.location;
+        visibleCellRange.location  = MAX(0,firstVisibleRow) * _numberOfCellsPerRow;
+        visibleCellRange.length    = (((lastVisibleRow - MAX(0,firstVisibleRow))+1) * _numberOfCellsPerRow);
+        
+        if( visibleCellRange.location + visibleCellRange.length >= _numberOfCells )
+            visibleCellRange.length = _numberOfCells - visibleCellRange.location;
     }
     else
     {
-        _visibleCellRange.location = -1;
-        _visibleCellRange.length = 0;
+        visibleCellRange.location = -1;
+        visibleCellRange.length = 0;
     }
+    
+    return visibleCellRange;
+}
+
+/* layoutCells handles all of the recycling/dequeing of cells as the scrollview is scrolling */
+- (void)layoutCells
+{
+    if( _numberOfCells == 0 || _pauseCellLayout )
+        return;
+    
+    _visibleCellRange = [self visibleCells];
     
     for( TOGridViewCell *cell in _visibleCells )
     {
@@ -311,17 +341,7 @@
         //make sure the frame is still properly set
         CGRect cellFrame;
         cellFrame.origin = [self originOfCellAtIndex: index];
-        cellFrame.size = _cellSize;
-        
-        //if there's supposed to be NO padding between the edge of the view and the cell,
-        //and this cell is short by uneven necessity of the number of cells per row
-        //(eg, 1024/3 on iPad = 341.333333333 pixels per cell :S), pad it out
-        if( _cellPaddingInset.width <= 0.0f + FLT_EPSILON && (index+1) % _numberOfCellsPerRow == 0 )
-        {
-            if( CGRectGetMinX(cellFrame) + CGRectGetWidth(cellFrame) < CGRectGetWidth(self.bounds) + FLT_EPSILON )
-                cellFrame.size.width = CGRectGetWidth(self.bounds) - CGRectGetMinX(cellFrame);
-        }
-            
+        cellFrame.size = [self sizeOfCellAtIndex: index];
         cell.frame = cellFrame;
         
         //add it to the visible objects set (It's already out of the recycled set at this point)
@@ -618,15 +638,9 @@ views over the top of the scrollview, and cross-fade animates between the two fo
             
             //if the grid view is having to do a small amount of cell padding (eg, if the width of each cell doesn't fit the screen properly)
             //reset the cell here
-            if( _cellPaddingInset.width <= 0.0f + FLT_EPSILON && (cell.index+1) % _numberOfCellsPerRow == 0 )
-            {
-                if( CGRectGetMinX(frame) + CGRectGetWidth(frame) < CGRectGetWidth(self.bounds) + FLT_EPSILON )
-                    frame.size.width = CGRectGetWidth(self.bounds) - CGRectGetMinX(frame);
-            }
-            else
-                frame.size.width = _cellSize.width;
-            
+            frame.size = [self sizeOfCellAtIndex: cell.index];
             cell.frame = frame;
+            
         }completion: nil];
     }
     
@@ -665,11 +679,67 @@ views over the top of the scrollview, and cross-fade animates between the two fo
 #pragma mark Cell Edit Handling
 - (BOOL)insertCellAtIndex: (NSInteger)index animated: (BOOL)animated
 {
-    return YES;
+    return [self insertCellsAtIndicies: [NSArray arrayWithObject: [NSNumber numberWithInt:index]] animated: animated];
 }
 
 - (BOOL)insertCellsAtIndicies: (NSArray *)indices animated: (BOOL)animated
 {
+    //Make sure that the dataSource has already updated the number of cells, or this will suck
+    NSInteger newNumberOfCells = [_dataSource numberOfCellsInGridView: self];
+    if( newNumberOfCells < _numberOfCells + [indices count] )
+        [NSException raise: @"Invalid dataSource!" format: @"Data source needs to be updated before new cells can be inserted. Number of cells was %d when it needed to be %d", _numberOfCells, newNumberOfCells ];
+    
+    _numberOfCells = newNumberOfCells;
+    
+    //increment each visible cell to the next index as necessary
+    for( NSNumber *number in indices )
+    {
+        for( TOGridViewCell *cell in _visibleCells )
+        {
+            if( cell.index >= [number integerValue])
+                cell.index++;
+        }
+    }
+    
+    //Animate each one too
+    //animate all of the existing cells into place
+    for( TOGridViewCell *cell in _visibleCells )
+    {
+        __block CGRect frame = cell.frame;
+        frame.size = [self sizeOfCellAtIndex: cell.index];
+        
+        [UIView animateWithDuration: 0.2f animations: ^{
+            frame.origin = [self originOfCellAtIndex: cell.index];
+            cell.frame = frame;
+        }];
+    }
+    
+    NSRange visibleCells = [self visibleCells];
+    for( NSNumber *number in indices )
+    {
+        NSInteger newIndex = [number integerValue];
+        if( newIndex >= visibleCells.location && newIndex < visibleCells.location+visibleCells.length)
+        {
+            TOGridViewCell *newCell = [_dataSource gridView: self cellForIndex: newIndex];
+            CGRect frame = newCell.frame;
+            frame.origin = [self originOfCellAtIndex: newIndex];
+            frame.size = [self sizeOfCellAtIndex: newIndex];
+            newCell.frame = frame;
+            newCell.index = newIndex;
+            [_visibleCells addObject: newCell];
+
+            [self addSubview: newCell];
+            
+            newCell.alpha = 0.0f;
+            [UIView animateWithDuration: 0.3f animations: ^{
+                newCell.alpha = 1.0f;
+            }];
+        }
+    }
+    
+    //reset the size of the content view to account for the new cells
+    self.contentSize = [self contentSizeOfScrollView];
+    
     return YES;
 }
 
@@ -875,15 +945,8 @@ views over the top of the scrollview, and cross-fade animates between the two fo
             _cellBeingDragged.transform = CGAffineTransformIdentity;
             
             frame = _cellBeingDragged.frame;
-            if( _cellPaddingInset.width <= 0.0f + FLT_EPSILON && (_cellBeingDragged.index+1) % _numberOfCellsPerRow == 0 )
-            {
-                CGPoint org = [self originOfCellAtIndex: _cellBeingDragged.index];
-                if( CGRectGetMinX(frame) + CGRectGetWidth(frame) < CGRectGetWidth(self.bounds) + FLT_EPSILON )
-                    frame.size.width = (CGRectGetWidth(self.bounds) - org.x);
-            }
-            else
-                frame.size.width = _cellSize.width;
-            
+            frame.size = [self sizeOfCellAtIndex: _cellBeingDragged.index];
+
             _cellBeingDragged.frame = frame;
             _cellBeingDragged.transform = transform;
             

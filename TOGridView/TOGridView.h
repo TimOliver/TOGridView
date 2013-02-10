@@ -129,6 +129,9 @@
     /* The distance between the cell's origin and the user's touch position */
     CGSize _draggedCellOffset;
     
+    /* Temporarily halt laying out cells if we need to do something manually that causes iOS to call 'layoutSubViews' */
+    BOOL _pauseCellLayout;
+    
     /* Store what protocol methods the delegate/dataSource implement to help reduce overhead involved with checking that at runtime */
     struct {
         unsigned int dataSourceNumberOfCells;
@@ -169,6 +172,9 @@
 /* Dequeue a recycled decoration view for reuse */
 - (UIView *)dequeueReusableDecorationView;
 
+/* The range of cells currently visible */
+- (NSRange)visibleCells;
+
 /* Add/delete cells */
 - (BOOL)insertCellAtIndex: (NSInteger)index animated: (BOOL)animated;
 - (BOOL)insertCellsAtIndicies: (NSArray *)indices animated: (BOOL)animated;
@@ -188,6 +194,8 @@
 /* Used to determine the origin (or center) of a cell at a particular index */
 - (CGPoint)originOfCellAtIndex: (NSInteger)cellIndex;
 
+/*Used to determine the size of a cell (eg in case specific cells needed to be padded in order to fit)*/
+- (CGSize)sizeOfCellAtIndex: (NSInteger)cellIndex;
 @end
 
 /*  

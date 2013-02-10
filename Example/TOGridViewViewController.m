@@ -14,6 +14,7 @@
 @interface TOGridViewViewController()
 
 - (void)editButtonTapped: (id)sender;
+- (void)addButtonTapped: (id)sender;
 
 @end
 
@@ -39,7 +40,7 @@
     [super viewDidLoad];
 
     _numbers = [NSMutableArray new];
-    for( NSInteger i=0; i < 60; i++ )
+    for( NSInteger i=0; i < 2; i++ )
         [_numbers addObject: [NSNumber numberWithInt:i]];
     
 	_gridView = [[TOGridView alloc] initWithFrame: self.view.bounds withCellClass: [TOGridViewTestCell class]];
@@ -74,7 +75,7 @@
     headerBevel.autoresizingMask = UIViewAutoresizingFlexibleWidth;
     [_gridView.headerView addSubview: headerBevel];
     
-    
+    self.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem: UIBarButtonSystemItemAdd target: self action: @selector(addButtonTapped:)];
     self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithTitle: @"Edit" style: UIBarButtonItemStylePlain target: self action: @selector(editButtonTapped:)];
     self.navigationController.navigationBar.tintColor = [UIColor colorWithWhite:0.1f alpha:1.0f];
     
@@ -191,6 +192,13 @@
 
 #pragma mark -
 #pragma mark Button Callbacks
+- (void)addButtonTapped:(id)sender
+{
+    NSNumber *newNumber = [NSNumber numberWithInteger: [_numbers count]];
+    [_numbers addObject: newNumber];
+    [_gridView insertCellAtIndex: [_numbers count]-1 animated: YES];
+}
+
 -(void)editButtonTapped:(id)sender
 {
     [_gridView setEditing: !_gridView.editing animated: YES];
