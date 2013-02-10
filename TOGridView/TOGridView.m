@@ -217,7 +217,7 @@
     //(eg, 1024/3 on iPad = 341.333333333 pixels per cell :S), pad it out
     if( _cellPaddingInset.width <= 0.0f + FLT_EPSILON && (cellIndex+1) % _numberOfCellsPerRow == 0 )
     {
-        CGPoint org = [self originOfCellAtIndex: _cellBeingDragged.index];
+        CGPoint org = [self originOfCellAtIndex: cellIndex];
         if( org.x + cellSize.width < CGRectGetWidth(self.bounds) + FLT_EPSILON )
             cellSize.width = CGRectGetWidth(self.bounds) - org.x;
     }
@@ -625,7 +625,10 @@ views over the top of the scrollview, and cross-fade animates between the two fo
         if( found == NO )
             continue;
         
+        //figure out the number of cells between the one being dragged and this one
         NSInteger delta = abs(cell.index - _cellIndexBeingDraggedOver);
+        
+        //animate it with a slight delay depending on how far away it was from the origin, so it looks a little more fluid 
         [UIView animateWithDuration: 0.25f delay: 0.05f*delta options: UIViewAnimationCurveEaseInOut animations: ^{
             CGRect frame = cell.frame;
             CGFloat y = frame.origin.y;
@@ -641,7 +644,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
             frame.size = [self sizeOfCellAtIndex: cell.index];
             cell.frame = frame;
             
-        }completion: nil];
+        } completion: nil];
     }
     
     _cellIndexBeingDraggedOver = currentlyDraggedOverIndex;
@@ -689,6 +692,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     if( newNumberOfCells < _numberOfCells + [indices count] )
         [NSException raise: @"Invalid dataSource!" format: @"Data source needs to be updated before new cells can be inserted. Number of cells was %d when it needed to be %d", _numberOfCells, newNumberOfCells ];
     
+    //make the new number of cells formal now since we'll need it in a bunch of calculations below
     _numberOfCells = newNumberOfCells;
     
     //increment each visible cell to the next index as necessary
@@ -701,13 +705,13 @@ views over the top of the scrollview, and cross-fade animates between the two fo
         }
     }
     
-    //Animate each one too
-    //animate all of the existing cells into place
+    // reposition all of the cells to their new indices
     for( TOGridViewCell *cell in _visibleCells )
     {
         __block CGRect frame = cell.frame;
         frame.size = [self sizeOfCellAtIndex: cell.index];
         
+        //animate all of the existing cells into place
         if( animated )
         {
             [UIView animateWithDuration: 0.2f animations: ^{
@@ -727,12 +731,14 @@ views over the top of the scrollview, and cross-fade animates between the two fo
         }
     }
     
+    //go through each new cell, and see if it's within the visible range onscreen
     NSRange visibleCells = [self visibleCells];
     for( NSNumber *number in indices )
     {
         NSInteger newIndex = [number integerValue];
         if( newIndex >= visibleCells.location && newIndex < visibleCells.location+visibleCells.length)
         {
+            //if it is, poll the data source to create it and then add it in
             TOGridViewCell *newCell = [_dataSource gridView: self cellForIndex: newIndex];
             CGRect frame = newCell.frame;
             frame.origin = [self originOfCellAtIndex: newIndex];
@@ -741,8 +747,15 @@ views over the top of the scrollview, and cross-fade animates between the two fo
             newCell.index = newIndex;
             [_visibleCells addObject: newCell];
 
-            [self addSubview: newCell];
+            //if there's a background view, add it above that,
+            //if not add it at the VERY back.
+            //otherwise, it will appear above the scrollbar if it's visible.
+            if( _backgroundView )
+                [self insertSubview: newCell aboveSubview: _backgroundView];
+            else
+                [self insertSubview: newCell atIndex: 0];
             
+            //fade it in
             if( animated )
             {
                 newCell.alpha = 0.0f;
