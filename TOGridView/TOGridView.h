@@ -194,7 +194,7 @@
 /* Used to determine the origin (or center) of a cell at a particular index */
 - (CGPoint)originOfCellAtIndex: (NSInteger)cellIndex;
 
-/*Used to determine the size of a cell (eg in case specific cells needed to be padded in order to fit)*/
+/* Used to determine the size of a cell (eg in case specific cells needed to be padded in order to fit) */
 - (CGSize)sizeOfCellAtIndex: (NSInteger)cellIndex;
 @end
 

@@ -768,9 +768,11 @@ views over the top of the scrollview, and cross-fade animates between the two fo
             if( animated )
             {
                 newCell.alpha = 0.0f;
-                [UIView animateWithDuration: 0.3f animations: ^{
+                newCell.transform = CGAffineTransformScale(CGAffineTransformIdentity, 0.5f, 0.5f);
+                [UIView animateWithDuration: 0.25f delay: 0.0f options: UIViewAnimationCurveEaseOut animations: ^{
                     newCell.alpha = 1.0f;
-                }];
+                    newCell.transform = CGAffineTransformIdentity;
+                } completion: nil];
             }
         }
     }
@@ -783,11 +785,101 @@ views over the top of the scrollview, and cross-fade animates between the two fo
 
 - (BOOL)deleteCellAtIndex: (NSInteger)index animated: (BOOL)animated
 {
-    return YES;
+    return [self deleteCellsAtIndicies: [NSArray arrayWithObject: [NSNumber numberWithInt:index]] animated: animated];
 }
 
 - (BOOL)deleteCellsAtIndicies: (NSArray *)indices animated: (BOOL)animated
 {
+    //Make sure that the dataSource has already updated the number of cells, or this will cause utter chaos.
+    NSInteger newNumberOfCells = [_dataSource numberOfCellsInGridView: self];
+    if( newNumberOfCells > _numberOfCells - [indices count] )
+        [NSException raise: @"Invalid dataSource!" format: @"Data source needs to be updated before cells can be deleted. Number of cells was %d when it needed to be %d", _numberOfCells, newNumberOfCells ];
+    
+    //make the new number of cells formal now since we'll need it in a bunch of calculations below
+    _numberOfCells = newNumberOfCells;
+    
+    //get visible cells now, so we know just to remove the visible ones
+    NSRange visibleCells = [self visibleCells];
+    
+    //decrement each visible cell to the next index as necessary
+    for( NSNumber *number in indices )
+    {
+        for( TOGridViewCell *cell in _visibleCells )
+        {
+            if( cell.index >= [number integerValue])
+                cell.index--;
+        }
+    }
+    
+    //go through each cell and take it out
+    for( NSNumber *number in indices )
+    {
+        NSInteger deleteIndex = [number integerValue];
+        
+        //set up the master array of selected cells to account for these new cells
+        [_selectedCells removeObjectAtIndex: deleteIndex];
+        
+        //if the cell is within the visible screen region, animate it going bye-bye
+        if( deleteIndex >= visibleCells.location && deleteIndex < visibleCells.location+visibleCells.length)
+        {
+            TOGridViewCell *cell = [self cellForIndex: deleteIndex];
+            
+            //fade it out
+            if( animated )
+            {
+                cell.alpha = 1.0f;
+                cell.transform = CGAffineTransformIdentity;
+                [UIView animateWithDuration: 0.25f delay: 0.0f options: UIViewAnimationCurveEaseOut animations: ^{
+                    cell.alpha = 0.0f;
+                    cell.transform = CGAffineTransformScale(CGAffineTransformIdentity, 0.5f, 0.5f); 
+                } completion: ^(BOOL done) {
+                    //once animated out, recycle the cell
+                    [cell removeFromSuperview];
+                    [_visibleCells removeObject: cell];
+                    [_recycledCells addObject: cell];
+                }];
+            }
+            else
+            {
+                [cell removeFromSuperview];
+                [_visibleCells removeObject: cell];
+                [_recycledCells addObject: cell];
+            }
+        }
+    }
+    
+    //reget the visible cells now. we may have to animate a few appearing from below
+    visibleCells = [self visibleCells];
+    
+    // reposition all of the cells to their new indices
+    for( TOGridViewCell *cell in _visibleCells )
+    {
+        __block CGRect frame = cell.frame;
+        frame.size = [self sizeOfCellAtIndex: cell.index];
+        
+        //animate all of the existing cells into place
+        if( animated )
+        {
+            [UIView animateWithDuration: 0.2f animations: ^{
+                frame.origin = [self originOfCellAtIndex: cell.index];
+                
+                //if we're sliding down a row, bring this cell to the front so it displays over the others
+                if( (NSInteger)frame.origin.y != (NSInteger)cell.frame.origin.y )
+                    [self bringSubviewToFront: cell];
+                
+                cell.frame = frame;
+            }];
+        }
+        else
+        {
+            frame.origin = [self originOfCellAtIndex: cell.index];
+            cell.frame = frame;
+        }
+    }
+    
+    //reset the size of the content view to account for the new cells
+    self.contentSize = [self contentSizeOfScrollView];
+    
     return YES;
 }
 
@@ -845,7 +937,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     return cell;
 }
 
-/* touchesBagan is initially called when we first touch this view on the screen. There is no delay */
+/* touchesBagan is initially called when we first touch this view on the screen. There is no delay. */
 - (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event
 {
     //reset the long press counter
@@ -979,6 +1071,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
             else
                 [cell setSelected: NO animated: NO];
             
+            //Since NSNumber is not mutable. Pull out the old value in the array and insert the toggled value
             [_selectedCells removeObjectAtIndex: cell.index];
             [_selectedCells insertObject: [NSNumber numberWithBool: !([selectedNumber boolValue]) ] atIndex: cell.index];
         }
@@ -1162,15 +1255,23 @@ views over the top of the scrollview, and cross-fade animates between the two fo
         [_dragScrollTimer invalidate];
         _dragScrollTimer = nil;
         
-        //deselect any selected cells
+        //deselect and exit edit mode for all visible cells
         for( TOGridViewCell *cell in _visibleCells )
+        {
             [cell setSelected: NO animated: NO];
+            [cell setEditing: NO animated: animated];
+        }
         
         //reset the list of selected cells
         _selectedCells = nil;
         _selectedCells = [NSMutableArray array];
         for( NSInteger i=0; i<_numberOfCells; i++ )
             [_selectedCells addObject: [NSNumber numberWithBool: NO]];
+    }
+    else
+    {
+        for( TOGridViewCell *cell in _visibleCells )
+            [cell setEditing: YES animated: animated];
     }
 }
 
