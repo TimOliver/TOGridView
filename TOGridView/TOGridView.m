@@ -793,6 +793,11 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     if( [indices count] == 0)
         return YES;
     
+    //Hang onto the lowest one being deleted as we'll use that for an animation origin later
+    NSInteger lowestCellBeingDeleted = -1;
+    //Remember the index of the last visible cell in case we have to animate some new ones in later
+    NSInteger lastVisibleCell = 0;
+    
     //Make sure that the dataSource has already updated the number of cells, or this will cause utter chaos.
     NSInteger newNumberOfCells = [_dataSource numberOfCellsInGridView: self];
     if( newNumberOfCells > _numberOfCells - [indices count] )
@@ -800,9 +805,6 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     
     //make the new number of cells formal now since we'll need it in a bunch of calculations below
     _numberOfCells = newNumberOfCells;
-    
-    //Hang onto the lowest one being deleted as we'll use that for an animation origin later
-    NSInteger lowestCellBeingDeleted = -1;
     
     //go through each cell and work out which cells-to-delete are visible. And delete them.
     NSMutableArray *visibleCellsToDelete = [NSMutableArray array];
@@ -838,6 +840,9 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     //work out what the new index for each visible cell will be after the cells are deleted
     for( TOGridViewCell *cell in _visibleCells )
     {
+        if( cell.index > lastVisibleCell )
+            lastVisibleCell = cell.index;
+        
         if( [visibleCellsToDelete indexOfObject: cell] != NSNotFound )
             continue;
         
@@ -876,6 +881,26 @@ views over the top of the scrollview, and cross-fade animates between the two fo
                 [_recycledCells addObject: cell];
             }
             
+            //work out if we need to create any new cells that will slide in from below the screen fold
+            NSRange visibleCells = [self visibleCells];
+            if( visibleCells.length > [_visibleCells count] )
+            {
+                NSInteger numberOfCellsToMake = visibleCells.length - [_visibleCells count];
+                NSInteger nextCellIndex = visibleCells.location+[_visibleCells count];
+                for( NSInteger i=0; i<numberOfCellsToMake; i++ )
+                {
+                    TOGridViewCell *newCell = [_dataSource gridView: self cellForIndex: nextCellIndex+i];
+                    newCell.index = nextCellIndex+i;
+                    CGRect frame = newCell.frame;
+                    frame.origin = [self originOfCellAtIndex: lastVisibleCell+i];
+                    frame.size = [self sizeOfCellAtIndex: lastVisibleCell+i];
+                    newCell.frame = frame;
+                    [_visibleCells addObject: newCell];
+                    
+                    [self addSubview: newCell];
+                }
+            }
+            
             //reset the size of all of the remaining cells before they move
             for( TOGridViewCell *cell in _visibleCells )
             {
@@ -887,9 +912,6 @@ views over the top of the scrollview, and cross-fade animates between the two fo
             //Animate the remaining visible cells into their visible places
             for( TOGridViewCell *cell in _visibleCells )
             {
-                //if( cell.index < lowestCellBeingDeleted )
-                //    continue;
-                
                 CGFloat delay = 0.0f;
                 if( cell.index > lowestCellBeingDeleted )
                     delay = abs( cell.index - (lowestCellBeingDeleted+1) ) * 0.05f;
@@ -915,35 +937,6 @@ views over the top of the scrollview, and cross-fade animates between the two fo
             [_recycledCells addObject: cell];
         }
     }
-    
-    //re-get the visible cells now. we may have to animate a few appearing from below
-    /*NSRange visibleCells = [self visibleCells];
-    
-    // reposition all of the cells to their new indices
-    for( TOGridViewCell *cell in visibleCells )
-    {
-        __block CGRect frame = cell.frame;
-        frame.size = [self sizeOfCellAtIndex: cell.index];
-        
-        //animate all of the existing cells into place
-        if( animated )
-        {
-            [UIView animateWithDuration: 0.2f animations: ^{
-                frame.origin = [self originOfCellAtIndex: cell.index];
-                
-                //if we're sliding down a row, bring this cell to the front so it displays over the others
-                if( (NSInteger)frame.origin.y != (NSInteger)cell.frame.origin.y )
-                    [self bringSubviewToFront: cell];
-                
-                cell.frame = frame;
-            }];
-        }
-        else
-        {
-            frame.origin = [self originOfCellAtIndex: cell.index];
-            cell.frame = frame;
-        }
-    }*/
     
     //reset the size of the content view to account for the new cells
     self.contentSize = [self contentSizeOfScrollView];
