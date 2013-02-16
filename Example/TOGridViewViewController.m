@@ -75,7 +75,7 @@
     headerBevel.autoresizingMask = UIViewAutoresizingFlexibleWidth;
     [_gridView.headerView addSubview: headerBevel];
     
-    self.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem: UIBarButtonSystemItemAdd target: self action: @selector(addButtonTapped:)];
+    self.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc] initWithTitle: @"Add" style: UIBarButtonItemStylePlain target: self action: @selector(addButtonTapped:)];
     self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithTitle: @"Edit" style: UIBarButtonItemStylePlain target: self action: @selector(editButtonTapped:)];
     self.navigationController.navigationBar.tintColor = [UIColor colorWithWhite:0.1f alpha:1.0f];
     
@@ -194,9 +194,25 @@
 #pragma mark Button Callbacks
 - (void)addButtonTapped:(id)sender
 {
-    NSNumber *newNumber = [NSNumber numberWithInteger: [_numbers count]];
-    [_numbers addObject: newNumber];
-    [_gridView insertCellAtIndex: [_numbers count]-1 animated: YES];
+    if( _gridView.editing == NO )
+    {
+        NSNumber *newNumber = [NSNumber numberWithInteger: [_numbers count]];
+        [_numbers addObject: newNumber];
+        [_gridView insertCellAtIndex: [_numbers count]-1 animated: YES];
+    }
+    else
+    {
+        NSArray *selectedCellIndices = [_gridView indicesOfSelectedCells];
+        
+        NSMutableArray *numbersToDelete = [NSMutableArray array];
+        for( NSNumber *indexToDelete in selectedCellIndices )
+            [numbersToDelete addObject: [_numbers objectAtIndex: [indexToDelete integerValue]]];
+        
+        //remove the entries from the data source
+        [_numbers removeObjectsInArray: numbersToDelete];
+        //animate the cells leaving the grid view
+        [_gridView deleteCellsAtIndices: selectedCellIndices animated: YES];
+    }
 }
 
 -(void)editButtonTapped:(id)sender
@@ -204,9 +220,15 @@
     [_gridView setEditing: !_gridView.editing animated: YES];
     
     if( _gridView.editing )
+    {
         self.navigationItem.rightBarButtonItem.title = @"Done";
+        self.navigationItem.leftBarButtonItem.title = @"Delete";
+    }
     else
+    {
         self.navigationItem.rightBarButtonItem.title = @"Edit";
+        self.navigationItem.leftBarButtonItem.title = @"Add";
+    }
 }
 
 @end

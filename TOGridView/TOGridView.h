@@ -177,10 +177,10 @@
 
 /* Add/delete cells */
 - (BOOL)insertCellAtIndex: (NSInteger)index animated: (BOOL)animated;
-- (BOOL)insertCellsAtIndicies: (NSArray *)indices animated: (BOOL)animated;
+- (BOOL)insertCellsAtIndices: (NSArray *)indices animated: (BOOL)animated;
 
 - (BOOL)deleteCellAtIndex: (NSInteger)index animated: (BOOL)animated;
-- (BOOL)deleteCellsAtIndicies: (NSArray *)indices animated: (BOOL)animated;
+- (BOOL)deleteCellsAtIndices: (NSArray *)indices animated: (BOOL)animated;
 
 /* Unhighlight a cell after it had been tapped (As opposed to 'deselecting' in edit mode) */
 - (void)unhighlightCellAtIndex: (NSInteger)index animated: (BOOL)animated;
@@ -196,6 +196,9 @@
 
 /* Used to determine the size of a cell (eg in case specific cells needed to be padded in order to fit) */
 - (CGSize)sizeOfCellAtIndex: (NSInteger)cellIndex;
+
+/* Get a list of indices of selected cells */
+- (NSArray *)indicesOfSelectedCells;
 @end
 
 /*  

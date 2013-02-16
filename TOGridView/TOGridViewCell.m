@@ -156,7 +156,7 @@
     if( animated )
     {
         //Perform the animation
-        [UIView animateWithDuration: 0.20f delay: 0.0f options: UIViewAnimationCurveEaseOut animations:
+        [UIView animateWithDuration: 0.20f delay: 0.0f options: UIViewAnimationOptionCurveEaseOut animations:
          ^{
             if( dragging )
             {
