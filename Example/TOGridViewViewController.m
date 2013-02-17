@@ -40,7 +40,7 @@
     [super viewDidLoad];
 
     _numbers = [NSMutableArray new];
-    for( NSInteger i=0; i < 2; i++ )
+    for( NSInteger i=0; i < 20; i++ )
         [_numbers addObject: [NSNumber numberWithInt:i]];
     
 	_gridView = [[TOGridView alloc] initWithFrame: self.view.bounds withCellClass: [TOGridViewTestCell class]];

@@ -794,7 +794,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
         return YES;
     
     //Hang onto the lowest one being deleted as we'll use that for an animation origin later
-    NSInteger lowestCellBeingDeleted = -1;
+    NSInteger lowestCellBeingDeleted = _numberOfCells;
     //Remember the index of the last visible cell in case we have to animate some new ones in later
     NSInteger lastVisibleCell = 0;
     
@@ -812,12 +812,12 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     for( NSNumber *number in indices )
     {
         NSInteger deleteIndex = [number integerValue];
-        
+
         //remember the selected cell indices we need to delete
         [selectedCellsToDelete addObject: [_selectedCells objectAtIndex: deleteIndex]];
         
         //if the cell is within the visible screen region, prep it for animation
-        if( deleteIndex >= _visibleCellRange.location && deleteIndex < _visibleCellRange.location + _visibleCellRange.length)
+        if( deleteIndex >= _visibleCellRange.location && deleteIndex <= _visibleCellRange.location + _visibleCellRange.length)
         {
             TOGridViewCell *cell = [self cellForIndex: deleteIndex];
             if( cell == nil )
@@ -830,7 +830,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
             [visibleCellsToDelete addObject: cell];
         }
         
-        if( lowestCellBeingDeleted <= deleteIndex )
+        if( deleteIndex <= lowestCellBeingDeleted )
             lowestCellBeingDeleted = deleteIndex;
     }
 
@@ -843,7 +843,8 @@ views over the top of the scrollview, and cross-fade animates between the two fo
         if( cell.index > lastVisibleCell )
             lastVisibleCell = cell.index;
         
-        if( [visibleCellsToDelete indexOfObject: cell] != NSNotFound )
+        //don't do anything if this is the VERY first cell. We can't subtract from 0x 
+        if( cell.index == 0 )
             continue;
         
         NSInteger offset = 0;
@@ -892,8 +893,8 @@ views over the top of the scrollview, and cross-fade animates between the two fo
                     TOGridViewCell *newCell = [_dataSource gridView: self cellForIndex: nextCellIndex+i];
                     newCell.index = nextCellIndex+i;
                     CGRect frame = newCell.frame;
-                    frame.origin = [self originOfCellAtIndex: lastVisibleCell+i];
-                    frame.size = [self sizeOfCellAtIndex: lastVisibleCell+i];
+                    frame.origin = [self originOfCellAtIndex: lastVisibleCell+i+1];
+                    frame.size = [self sizeOfCellAtIndex: lastVisibleCell+i+1];
                     newCell.frame = frame;
                     [_visibleCells addObject: newCell];
                     
@@ -913,8 +914,8 @@ views over the top of the scrollview, and cross-fade animates between the two fo
             for( TOGridViewCell *cell in _visibleCells )
             {
                 CGFloat delay = 0.0f;
-                if( cell.index > lowestCellBeingDeleted )
-                    delay = abs( cell.index - (lowestCellBeingDeleted+1) ) * 0.05f;
+                if( cell.index >= lowestCellBeingDeleted )
+                    delay = abs(cell.index - (lowestCellBeingDeleted)) * 0.05f;
                 
                 CGPoint newOrigin = [self originOfCellAtIndex: cell.index];
                 if( (NSInteger)cell.frame.origin.y != (NSInteger)newOrigin.y )
@@ -926,6 +927,8 @@ views over the top of the scrollview, and cross-fade animates between the two fo
                     cell.frame = frame;
                 } completion: nil];
             }
+            
+            self.contentSize = [self contentSizeOfScrollView];
         }];
     }
     else
@@ -936,10 +939,10 @@ views over the top of the scrollview, and cross-fade animates between the two fo
             [_visibleCells removeObject: cell];
             [_recycledCells addObject: cell];
         }
-    }
     
-    //reset the size of the content view to account for the new cells
-    self.contentSize = [self contentSizeOfScrollView];
+        //reset the size of the content view to account for the new cells
+        self.contentSize = [self contentSizeOfScrollView];
+    }
     
     return YES;
 }
