@@ -130,7 +130,10 @@
     CGSize _draggedCellOffset;
     
     /* Temporarily halt laying out cells if we need to do something manually that causes iOS to call 'layoutSubViews' */
-    BOOL _pauseCellLayout;
+    __block BOOL _pauseCellLayout;
+    
+    /* If we need to perform an animation that may trigger the cross-fade animation, temporarily disable it here. */
+    __block BOOL _pauseCrossFadeAnimation;
     
     /* Store what protocol methods the delegate/dataSource implement to help reduce overhead involved with checking that at runtime */
     struct {

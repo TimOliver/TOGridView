@@ -378,6 +378,10 @@ views over the top of the scrollview, and cross-fade animates between the two fo
 {
     [super layoutSubviews];
     
+    /* If we needed to pause layout to perform manual cell arrangment (Eg when deleting cells), don't continue. */
+    if( _pauseCellLayout )
+        return;
+    
     /* 
      Bit of a sneaky hack here. We've got two interesting scenarios happening:
      -The first-gen iPad has a slow GPU (meaning lots of blending runs chuggy), but can bake entire views to UIImage REALLY fast (presumably because the views are non-Retina)
@@ -392,7 +396,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     /* Apply the crossfade effect if this method is being called while there is a pending 'bounds' animation present. */
     /* Capture the 'before' state to UIImageView before we reposition all of the cells */
     CABasicAnimation *boundsAnimation = (CABasicAnimation *)[self.layer animationForKey: @"bounds"];
-    if( boundsAnimation )
+    if( boundsAnimation && _pauseCrossFadeAnimation == NO )
     {
         //make a mutable copy of the bounds animation,
         //as we will need to change the 'from' state in a little while
@@ -453,7 +457,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     [self layoutCells];
     
     //set up the second half of the animation crossfade and then start the crossfade animation
-    if( boundsAnimation )
+    if( boundsAnimation && _pauseCrossFadeAnimation == NO )
     {
         /*
             "bounds" stores the scroll offset in its 'origin' property, and the actual size of the view in the 'size' property.
@@ -700,13 +704,16 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     _numberOfCells = newNumberOfCells;
     
     //increment each visible cell to the next index as necessary
-    for( NSNumber *number in indices )
+    for( TOGridViewCell *cell in _visibleCells )
     {
-        for( TOGridViewCell *cell in _visibleCells )
+        NSInteger cellIncrement = 0;
+        for( NSNumber *number in indices )
         {
             if( cell.index >= [number integerValue])
-                cell.index++;
+                cellIncrement++;
         }
+        
+        cell.index = cell.index + cellIncrement;
     }
     
     // reposition all of the cells to their new indices
@@ -838,14 +845,13 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     [_selectedCells removeObjectsInArray: selectedCellsToDelete];
     
     //work out what the new index for each visible cell will be after the cells are deleted
+    //NB: We MUST do this for all cells, including ones being deleted as as we start removing
+    //cells from the view, it calls 'layoutSubviews', which will purge any cells with indices larger
+    //than the new number of cells from the data source
     for( TOGridViewCell *cell in _visibleCells )
     {
         if( cell.index > lastVisibleCell )
             lastVisibleCell = cell.index;
-        
-        //don't do anything if this is the VERY first cell. We can't subtract from 0x 
-        if( cell.index == 0 )
-            continue;
         
         NSInteger offset = 0;
         for( NSNumber *number in indices )
@@ -854,12 +860,15 @@ views over the top of the scrollview, and cross-fade animates between the two fo
                 offset++;
         }
         
-        cell.index = cell.index - offset;
+        cell.index = MAX(0,cell.index - offset);
     }
     
     //fade out all the cells
     if( animated )
     {
+        //stop 'layoutCells' from interacting with this (Since 'layoutSubviews' gets triggered by iOS everytime we add/remove a cell)
+        _pauseCellLayout = YES;
+        
         [UIView animateWithDuration: 0.25f delay: 0.0f options: UIViewAnimationOptionCurveEaseInOut animations: ^{
             for ( TOGridViewCell *cell in visibleCellsToDelete )
             {
@@ -902,6 +911,9 @@ views over the top of the scrollview, and cross-fade animates between the two fo
                 }
             }
             
+            //re-enable 'layoutCells'
+            _pauseCellLayout = NO;
+            
             //reset the size of all of the remaining cells before they move
             for( TOGridViewCell *cell in _visibleCells )
             {
@@ -925,10 +937,19 @@ views over the top of the scrollview, and cross-fade animates between the two fo
                     CGRect frame = cell.frame;
                     frame.origin = newOrigin;
                     cell.frame = frame;
-                } completion: nil];
+                } completion: ^(BOOL finished) {
+                    //once the last cell is finished animating, resize the contentsize
+                    if( cell.index == visibleCells.location+(visibleCells.length-1) )
+                    {
+                        _pauseCrossFadeAnimation = YES;
+                        [UIView animateWithDuration: 0.25f animations: ^{
+                            self.contentSize = [self contentSizeOfScrollView];
+                        } completion: ^(BOOL finished){
+                            _pauseCrossFadeAnimation = NO;
+                        }];
+                    }
+                }];
             }
-            
-            self.contentSize = [self contentSizeOfScrollView];
         }];
     }
     else
