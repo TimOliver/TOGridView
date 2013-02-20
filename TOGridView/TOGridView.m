@@ -655,6 +655,42 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     _cellIndexBeingDraggedOver = currentlyDraggedOverIndex;
 }
 
+- (void)scrollToCellAtIndex: (NSInteger)cellIndex toPosition: (TOGridViewScrollPosition)position animated: (BOOL)animated completed: (void (^)(void))completed
+{
+    CGPoint cellPosition = [self originOfCellAtIndex: cellIndex];
+    CGFloat scrollPosition = 0.0f;
+    
+    switch ( position ) {
+        case TOGridViewScrollPositionTop:
+            scrollPosition = cellPosition.y;
+            break;
+        case TOGridViewScrollPositionMiddle:
+            scrollPosition = cellPosition.y + floor(CGRectGetHeight(self.bounds) * 0.5f) + floor(_cellSize.height*0.5f);
+            break;
+        case TOGridViewScrollPositionBottom:
+            scrollPosition = (cellPosition.y + CGRectGetHeight(self.bounds)) - _cellSize.height;
+            break;
+        default:
+            break;
+    }
+    
+    if( animated )
+    {
+        [UIView animateWithDuration: 0.5f animations: ^{
+            self.contentOffset = CGPointMake( scrollPosition, 0.0f );
+        } completion: ^(BOOL finished) {
+            if( completed )
+                completed();
+        }];
+    }
+    else
+    {
+        self.contentOffset = CGPointMake( scrollPosition, 0.0f );
+        if( completed )
+            completed();
+    }
+}
+
 #pragma mark -
 #pragma mark Cell/Decoration Recycling
 
