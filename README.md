@@ -30,9 +30,9 @@ Reasons for this include:
   * Items are contained in cells and displayed vertically
   * Cells are arranged in horizontal rows, with the number and size customisable at different orientations.
   * Cells will crossfade upon orientation change. (Using a technique that was covered at WWDC 2012)
+  * Cells can be inserted/deleted on the fly without forcing a complete reload.
+  * In edit mode, cells can be deleted or re-ordered (ala the iOS Home Screen)
   * (TODO) Each row can have a decoraton view placed in the background (eg a shelf graphic)
-  * (TODO) Cells can be inserted/deleteds on the fly without forcing a complete reload.
-  * (TODO) In edit mode, cells can be deleted or re-ordered (ala the iOS Home Screen)
 
 ## License
 
