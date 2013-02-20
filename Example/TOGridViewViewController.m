@@ -196,9 +196,9 @@
 {
     if( _gridView.editing == NO )
     {
-        NSNumber *newNumber = [NSNumber numberWithInteger: [_numbers count]];
-        [_numbers addObject: newNumber];
-        [_gridView insertCellAtIndex: [_numbers count]-1 animated: YES];
+        NSNumber *newNumber = [NSNumber numberWithInteger: 0];
+        [_numbers insertObject: newNumber atIndex: 0];
+        [_gridView insertCellAtIndex: 0 animated: YES];
     }
     else
     {
