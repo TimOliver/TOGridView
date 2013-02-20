@@ -40,6 +40,7 @@
 - (void)fireLongPressTimer: (NSTimer *)timer;
 - (NSInteger)indexOfCellAtPoint: (CGPoint)point;
 - (void)updateCellsLayoutWithDraggedCellAtPoint: (CGPoint)dragPanPoint;
+- (void)cancelDraggingCell;
 
 @end
 
@@ -795,9 +796,13 @@ views over the top of the scrollview, and cross-fade animates between the two fo
 {
     if( [indices count] == 0)
         return YES;
+ 
+    //cancel the cell dragging if it's active
+    if( _isEditing )
+        [self cancelDraggingCell];
     
     //Hang onto the lowest cell necessary to animate all visible cells
-    //This can either be the very lowest cell, or simply the first visible cell on screen
+    //This can either be the very lowest cell targeted for deletion, or simply the first visible cell on screen
     __block NSInteger firstCellToAnimate = _numberOfCells;
     //Hang onto the final cell that will be animated after the offset is applied
     __block NSInteger lastVisibleCell = 0;
@@ -905,7 +910,9 @@ views over the top of the scrollview, and cross-fade animates between the two fo
             
             //Now that the cells are out of the hierarchy, re-calculate which cells should be visible on screen now
             NSRange newVisibleCells = [self visibleCells];
-            NSInteger originCell = (ceil(CGRectGetMaxY(self.bounds) / _rowHeight) + 1)*_numberOfCellsPerRow;
+            //The next cell index below the old to use as the origin basis for all the new cells we create down there
+            //NSInteger originCell = (ceil((self.contentOffset.y+CGRectGetHeight(self.bounds)) / _rowHeight) + 1)*_numberOfCellsPerRow;
+            NSInteger originCell = (newVisibleCells.location+newVisibleCells.length);
             
             //Go through and create each new cell, with their new IDs but leave them in their previous position
             for( NSInteger i=0; i < newVisibleCells.length; i++ )
@@ -917,13 +924,15 @@ views over the top of the scrollview, and cross-fade animates between the two fo
                 newCell = [_dataSource gridView: self cellForIndex: newVisibleCells.location+i];
                 newCell.index = newVisibleCells.location+i;
                 CGRect frame = newCell.frame;
-                frame.origin = [self originOfCellAtIndex: originCell+i];
+                frame.origin = [self originOfCellAtIndex: originCell++];
                 frame.size = [self sizeOfCellAtIndex: newVisibleCells.location+i];
                 newCell.frame = frame;
                 [_visibleCells addObject: newCell];
                 
                 [self addSubview: newCell];
             }
+            
+            //NSLog(@"Origin: %d, Cells: %@", originCell, _visibleCells );
             
             //find the FINAL cell index so we can clean up after all of the animations
             NSInteger finalCellIndex = 0;
@@ -945,10 +954,6 @@ views over the top of the scrollview, and cross-fade animates between the two fo
                 cell.frame = frame;
   
                 [cell setSelected: NO animated: NO];
-                
-                /*CGFloat delay = 0.0f;
-                if( cell.index >= firstCellToAnimate )
-                    delay = abs(cell.index - (firstCellToAnimate)) * 0.05f;*/
                 
                 CGPoint newOrigin = [self originOfCellAtIndex: cell.index];
                 if( (NSInteger)cell.frame.origin.y != (NSInteger)newOrigin.y )
@@ -998,7 +1003,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
                     [self setUserInteractionEnabled: YES];
                 
                     _pauseCrossFadeAnimation = YES;
-                    [UIView animateWithDuration: 0.20f animations: ^{
+                    [UIView animateWithDuration: 0.30f animations: ^{
                         self.contentSize = [self contentSizeOfScrollView];
                     } completion: ^(BOOL finished){
                         _pauseCrossFadeAnimation = NO;
@@ -1284,20 +1289,26 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     
     //If we were in the middle of dragging a cell, kill it
     if( _isEditing && _cellBeingDragged )
-    {
-        _cellBeingDragged.layer.anchorPoint = CGPointMake( 0.5f, 0.5f );
-        [_cellBeingDragged setDragging: NO animated: NO];
-        _cellBeingDragged = nil;
-        
-        _cellIndexBeingDraggedOver = -1;
-        
-        [self setScrollEnabled: YES];
-    }
+        [self cancelDraggingCell];
     
     //if we were tapping and holding a cell, kill that
     [_longPressTimer invalidate];
     
     [super touchesCancelled: touches withEvent: event];
+}
+
+- (void)cancelDraggingCell
+{
+    if( _cellBeingDragged == nil )
+        return;
+    
+    _cellBeingDragged.layer.anchorPoint = CGPointMake( 0.5f, 0.5f );
+    [_cellBeingDragged setDragging: NO animated: NO];
+    _cellBeingDragged = nil;
+    
+    _cellIndexBeingDraggedOver = -1;
+    
+    [self setScrollEnabled: YES];
 }
 
 #pragma mark -
@@ -1387,16 +1398,8 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     }
     
     //If we were in the middle of dragging a cell, kill it
-    if( _isEditing && _cellBeingDragged )
-    {
-        _cellBeingDragged.layer.anchorPoint = CGPointMake( 0.5f, 0.5f );
-        [_cellBeingDragged setDragging: NO animated: NO];
-        _cellBeingDragged = nil;
-        
-        _cellIndexBeingDraggedOver = -1;
-        
-        [self setScrollEnabled: YES];
-    }
+    if( _isEditing )
+        [self cancelDraggingCell];
 }
 
 - (void)setEditing:(BOOL)editing animated:(BOOL)animated
