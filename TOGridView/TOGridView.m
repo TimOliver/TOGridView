@@ -196,14 +196,14 @@
 /* The origin of each cell */
 - (CGPoint)originOfCellAtIndex:(NSInteger)cellIndex
 {
-    CGPoint origin;
+    CGPoint origin = CGPointZero;
     
-    origin.y    = _offsetFromHeader;        /* The height of the header view */
-    origin.y    += _offsetOfCellsInRow;     /* Relative offset of the cell in each row */
-    origin.y    +=_cellPaddingInset.height; /* The inset padding arond the cells in the scrollview */
+    origin.y    = _offsetFromHeader;                    /* The height of the header view */
+    origin.y    += _offsetOfCellsInRow;                 /* Relative offset of the cell in each row */
+    origin.y    += _cellPaddingInset.height;            /* The inset padding arond the cells in the scrollview */
     origin.y    += (_rowHeight * floor(cellIndex/_numberOfCellsPerRow));
     
-    origin.x    =  _cellPaddingInset.width;
+    origin.x =  _cellPaddingInset.width;
     origin.x    += ((cellIndex % _numberOfCellsPerRow) * (_cellSize.width+_widthBetweenCells));
     
     return origin;
@@ -217,7 +217,7 @@
     //and this cell is short by uneven necessity of the number of cells per row
     //(eg, 1024/3 on iPad = 341.333333333 pixels per cell :S), pad it out
     if( _cellPaddingInset.width <= 0.0f + FLT_EPSILON && (cellIndex+1) % _numberOfCellsPerRow == 0 )
-    {
+    {        
         CGPoint org = [self originOfCellAtIndex: cellIndex];
         if( org.x + cellSize.width < CGRectGetWidth(self.bounds) + FLT_EPSILON )
             cellSize.width = CGRectGetWidth(self.bounds) - org.x;
@@ -932,8 +932,6 @@ views over the top of the scrollview, and cross-fade animates between the two fo
                 [self addSubview: newCell];
             }
             
-            //NSLog(@"Origin: %d, Cells: %@", originCell, _visibleCells );
-            
             //find the FINAL cell index so we can clean up after all of the animations
             NSInteger finalCellIndex = 0;
             for( TOGridViewCell *cell in _visibleCells )
@@ -1024,6 +1022,44 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     
         //reset the size of the content view to account for the new cells
         self.contentSize = [self contentSizeOfScrollView];
+    }
+    
+    return YES;
+}
+
+- (BOOL)reloadCellAtIndex: (NSInteger)index
+{
+    return [self reloadCellsAtIndices: [NSArray arrayWithObject: [NSNumber numberWithInteger:index]]];
+}
+
+- (BOOL)reloadCellsAtIndices: (NSArray *)indices
+{
+    if( [indices count] == 0 )
+        return YES;
+    
+    for( NSNumber *index in indices )
+    {
+        NSInteger cellIndex = [index integerValue];
+        
+        //if the cell isn't visisble, skip it
+        TOGridViewCell *cell = [self cellForIndex: cellIndex];
+        if( cell == nil )
+            continue;
+        
+        CGRect frame = cell.frame;
+        [cell removeFromSuperview];
+        [_visibleCells removeObject: cell];
+        [_recycledCells addObject: cell];
+        cell = nil;
+        
+        cell = [_dataSource gridView: self cellForIndex: cellIndex];
+        cell.index = cellIndex;
+        cell.frame = frame;
+        
+        if( _backgroundView )
+            [self insertSubview: cell aboveSubview: _backgroundView];
+        else
+            [self insertSubview: cell atIndex: 0];
     }
     
     return YES;

@@ -26,6 +26,12 @@
 @class TOGridView;
 @class TOGridViewCell;
 
+typedef enum {
+    TOGridViewScrollPositionTop=0,
+    TOGridViewScrollPositionMiddle,
+    TOGridViewScrollPositionBottom
+} TOGridViewScrollPosition;
+
 ///
 /// Data Source Object
 ///
@@ -163,6 +169,7 @@
 @property (nonatomic,assign) NSInteger                    dragScrollBoundaryDistance;   /* The distance, in points, from the top of the view downwards that will trigger auto-scrolling when dragging a cell (Same for the bottom). Default is 60 points. */
 @property (nonatomic,assign) CGFloat                      dragScrollMaxVelocity;        /* The maximum velocity the view will scroll at when dragging (Ramped up from 0 the closer the finger is to the view boundary). Default is 15 points. */
 
+
 /* Init the class, and register the cell class to use at the same time. (Else the default TOGridViewCell class is implemented) */
 - (id)initWithFrame:(CGRect)frame withCellClass: (Class)cellClass;
 
@@ -178,12 +185,17 @@
 /* The range of cells currently visible */
 - (NSRange)visibleCells;
 
-/* Add/delete cells */
+/* Add new cells */
 - (BOOL)insertCellAtIndex: (NSInteger)index animated: (BOOL)animated;
 - (BOOL)insertCellsAtIndices: (NSArray *)indices animated: (BOOL)animated;
 
+/* Delete existing cells */
 - (BOOL)deleteCellAtIndex: (NSInteger)index animated: (BOOL)animated;
 - (BOOL)deleteCellsAtIndices: (NSArray *)indices animated: (BOOL)animated;
+
+/* Reload existing cells */
+- (BOOL)reloadCellAtIndex: (NSInteger)index;
+- (BOOL)reloadCellsAtIndices: (NSArray *)indices;
 
 /* Unhighlight a cell after it had been tapped (As opposed to 'deselecting' in edit mode) */
 - (void)unhighlightCellAtIndex: (NSInteger)index animated: (BOOL)animated;
@@ -202,6 +214,9 @@
 
 /* Get a list of indices of selected cells */
 - (NSArray *)indicesOfSelectedCells;
+
+/* Scroll to a specific cell in the index */
+- (void)scrollToCellAtIndex: (NSInteger)cellIndex toPosition: (TOGridViewScrollPosition)position animated: (BOOL)animated completed: (void (^)(void))completed;
 @end
 
 /*  

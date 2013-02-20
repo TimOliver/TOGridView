@@ -93,7 +93,7 @@
 #pragma mark Delegate
 - (CGSize)innerPaddingForGridView:(TOGridView *)gridView
 {
-    return CGSizeZero;
+    return CGSizeMake(-1.0f, 0.0f);
 }
 
 - (CGSize)sizeOfCellsForGridView:(TOGridView *)gridView
@@ -101,20 +101,20 @@
     if( UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad )
     {
         if( UIInterfaceOrientationIsPortrait( self.interfaceOrientation ) )
-            return CGSizeMake(384, 100);
+            return CGSizeMake(385, 100);
         else
-            return CGSizeMake(341, 100);
+            return CGSizeMake(342, 100);
     }
     else
     {
         if( UIInterfaceOrientationIsPortrait( self.interfaceOrientation ) )
-            return CGSizeMake(320, 70);
+            return CGSizeMake(322, 70);
         else
         {
             if( UI_USER_INTERFACE_SCREEN_IDIOM() == UIUserInterfaceScreenIdiomPhone4Inch )
-                return CGSizeMake(284, 70);
+                return CGSizeMake(285, 70);
             else
-                return CGSizeMake(480, 70);
+                return CGSizeMake(481, 70);
         }
     }
 }
