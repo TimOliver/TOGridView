@@ -72,8 +72,8 @@
         self.exclusiveTouch         = YES;
         
         // The sets to handle the recycling and repurposing/reuse of cells
-        _recycledCells              = [NSMutableSet new];
-        _visibleCells               = [NSMutableSet new];
+        _recycledCells              = [NSMutableArray array];
+        _visibleCells               = [NSMutableArray array];
         
         // The default class used to instantiate new cells
         _cellClass                  = [TOGridViewCell class];
@@ -234,7 +234,8 @@
         [_recycledCells addObject: cell];
     }
     
-    [_visibleCells minusSet: _recycledCells];
+    for ( TOGridViewCell *cell in _recycledCells )
+        [_visibleCells removeObject: cell];
 }
 
 //Work out which cells this point of space will technically belong to
@@ -258,13 +259,16 @@
 #pragma mark Cell Management
 - (TOGridViewCell *)cellForIndex:(NSInteger)index
 {
-    for( TOGridViewCell *cell in _visibleCells )
-    {
-        if( cell.index == index)
-            return cell;
-    }
+    __block TOGridViewCell *cell = nil;
+    [_visibleCells enumerateObjectsUsingBlock: ^(id loopedCell, NSUInteger i, BOOL *stop) {
+        if( [(TOGridViewCell *)loopedCell index] == index )
+        {
+            cell = loopedCell;
+            *stop = YES;
+        }
+    }];
     
-    return nil;
+    return cell;
 }
 
 - (NSRange)visibleCells
@@ -313,11 +317,14 @@
         if( cell.index < _visibleCellRange.location || cell.index >= _visibleCellRange.location+_visibleCellRange.length )
         {
             [_recycledCells addObject: cell];
-            [cell removeFromSuperview];
+            cell.hidden = NO;
         }
     }
     if( [_recycledCells count] )
-        [_visibleCells minusSet: _recycledCells];
+    {
+        for( TOGridViewCell *cell in _recycledCells )
+            [_visibleCells removeObject: cell];
+    }
     
     /* Only proceed with the following code if the number of visible cells is lower than it should be. */
     /* This code produces the most latency, so minimizing its call frequency is critical */
@@ -343,6 +350,8 @@
         //if the cell has been selected, highlight it
         if( _isEditing && [[_selectedCells objectAtIndex: cell.index] boolValue] == YES )
             [cell setSelected: YES animated: NO];
+        else
+            [cell setSelected: NO animated: NO];
         
         //make sure the frame is still properly set
         CGRect cellFrame;
@@ -355,10 +364,15 @@
         
         //Make sure the cell is inserted ABOVE any visible background view, but still BELOW the scroll indicator bar graphic.
         //(ie, we can't simply call 'addSubiew')
-        if( _backgroundView )
-            [self insertSubview: cell aboveSubview: _backgroundView];
+        if( cell.superview == nil )
+        {
+            if( _backgroundView )
+                [self insertSubview: cell aboveSubview: _backgroundView];
+            else
+                [self insertSubview: cell atIndex: 0];
+        }
         else
-            [self insertSubview: cell atIndex: 0];
+            cell.hidden = NO;
     }
 }
 
@@ -698,14 +712,16 @@ views over the top of the scrollview, and cross-fade animates between the two fo
 /* Dequeue a recycled cell for reuse */
 - (TOGridViewCell *)dequeReusableCell
 {
+    TOGridViewCell *cell = nil;
+    
     //Grab a cell that was previously recycled
-    TOGridViewCell *cell = [_recycledCells anyObject];
-    if( cell )
+    if( [_recycledCells count] > 0 )
     {
+        cell = [_recycledCells objectAtIndex: 0];
         [_recycledCells removeObject: cell];
         return cell;
     }
-    
+
     //If there are no cells available, create a new one and set it up
     cell = [[_cellClass alloc] initWithFrame: CGRectMake(0, 0, _cellSize.width, _cellSize.height)];
     cell.frame = CGRectMake(0, 0, _cellSize.width, _cellSize.height);
@@ -797,7 +813,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
             newCell = [_dataSource gridView: self cellForIndex: newVisibleCells.location+i];
             newCell.index = newVisibleCells.location+i;
             CGRect frame = newCell.frame;
-            frame.origin = [self originOfCellAtIndex: originCell--];
+            frame.origin = [self originOfCellAtIndex: MAX(0,originCell--)];
             frame.size = [self sizeOfCellAtIndex: newVisibleCells.location+i];
             newCell.frame = frame;
             [_visibleCells addObject: newCell];
@@ -859,7 +875,10 @@ views over the top of the scrollview, and cross-fade animates between the two fo
             {
                 while( numberOfCells > maxNumberOfCellsInScreen )
                 {
-                    TOGridViewCell *cell = [_recycledCells anyObject];
+                    if( [_recycledCells count] == 0 )
+                        break;
+                    
+                    TOGridViewCell *cell = [_recycledCells objectAtIndex:0];
                     if( cell == nil )
                         continue;
                     
@@ -867,9 +886,6 @@ views over the top of the scrollview, and cross-fade animates between the two fo
                     cell = nil;
                     
                     numberOfCells--;
-                    
-                    if( [_recycledCells count] == 0 )
-                        break;
                 }
             }
             
@@ -1096,7 +1112,10 @@ views over the top of the scrollview, and cross-fade animates between the two fo
                     {
                         while( numberOfCells > maxNumberOfCellsInScreen )
                         {
-                            TOGridViewCell *cell = [_recycledCells anyObject];
+                            if( [_recycledCells count] == 0 )
+                                break;
+                            
+                            TOGridViewCell *cell = [_recycledCells objectAtIndex: 0];
                             if( cell == nil )
                                 continue;
                             
@@ -1104,9 +1123,6 @@ views over the top of the scrollview, and cross-fade animates between the two fo
                             cell = nil;
                             
                             numberOfCells--;
-                            
-                            if( [_recycledCells count] == 0 )
-                                break;
                         }
                     }
                     

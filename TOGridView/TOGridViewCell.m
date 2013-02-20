@@ -74,6 +74,9 @@
 /* Called when a cell is tapped and/or subsequently released to add a highlight effect. */
 - (void)setHighlighted: (BOOL)highlighted animated:(BOOL)animated
 {
+    if( highlighted == _isHighlighted )
+        return;
+    
     _isHighlighted = highlighted;
     
     //skip this if we haven't got a highlighted background view supplied

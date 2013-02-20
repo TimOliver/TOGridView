@@ -101,9 +101,9 @@
     if( UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad )
     {
         if( UIInterfaceOrientationIsPortrait( self.interfaceOrientation ) )
-            return CGSizeMake(385, 100);
+            return CGSizeMake(385, 120);
         else
-            return CGSizeMake(342, 100);
+            return CGSizeMake(342, 120);
     }
     else
     {
@@ -145,7 +145,7 @@
 - (NSUInteger)heightOfRowsInGridView:(TOGridView *)gridView
 {
     if( UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad )
-        return 100;
+        return 120;
     
     return 70;
 }
@@ -181,7 +181,9 @@
 {
     TOGridViewTestCell *cell = (TOGridViewTestCell *)[_gridView dequeReusableCell];
     
-    cell.textLabel.text = [NSString stringWithFormat: @"Cell %d", [[_numbers objectAtIndex: cellIndex] intValue]];
+    //NSInteger cellNum = [[_numbers objectAtIndex: cellIndex] intValue];
+    cell.textLabel.text = @"Test cell";//[NSString stringWithFormat: @"Cell %d", cellNum];
+    
     return cell;
 }
 

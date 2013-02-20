@@ -75,8 +75,8 @@ typedef enum {
     NSRange     _visibleCellRange;
     
     /* Stores for cells in use, and ones in standby */
-    NSMutableSet *_recycledCells;
-    NSMutableSet *_visibleCells;
+    NSMutableArray *_recycledCells;
+    NSMutableArray *_visibleCells;
 
     /* Decoration views */
     NSMutableSet *_recyledDecorationViews;

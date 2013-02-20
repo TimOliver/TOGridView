@@ -35,6 +35,7 @@
         _textLabel.shadowOffset = CGSizeMake( 0, 1.0f);
         
         [self.contentView addSubview: _textLabel];
+        
     }
     
     return self;
