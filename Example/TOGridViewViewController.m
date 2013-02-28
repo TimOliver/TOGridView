@@ -101,9 +101,9 @@
     if( UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad )
     {
         if( UIInterfaceOrientationIsPortrait( self.interfaceOrientation ) )
-            return CGSizeMake(385, 120);
+            return CGSizeMake(100, 100);
         else
-            return CGSizeMake(342, 120);
+            return CGSizeMake(100, 100);
     }
     else
     {
@@ -124,9 +124,9 @@
     if( UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad )
     {
         if( UIInterfaceOrientationIsPortrait( self.interfaceOrientation ) )
-            return 2;
+            return 7;
         else
-            return 3;
+            return 10;
     }
     else
     {
@@ -145,7 +145,7 @@
 - (NSUInteger)heightOfRowsInGridView:(TOGridView *)gridView
 {
     if( UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad )
-        return 120;
+        return 100;
     
     return 70;
 }

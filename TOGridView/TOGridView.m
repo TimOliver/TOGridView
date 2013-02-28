@@ -31,7 +31,6 @@
 - (void)resetCellMetrics;
 - (void)layoutCells;
 - (CGSize)contentSizeOfScrollView;
-- (TOGridViewCell *)cellForIndex: (NSInteger)index;
 - (UIImage *)snapshotOfCellsInRect: (CGRect)rect;
 - (void)invalidateVisibleCells;
 - (void)didPan: (UIPanGestureRecognizer *)gestureRecognizer;
@@ -52,7 +51,8 @@
             editing                     = _isEditing,
             nonRetinaRenderContexts     = _nonRetinaRenderContexts,
             dragScrollBoundaryDistance  = _dragScrollBoundaryDistance,
-            dragScrollMaxVelocity       = _dragScrollMaxVelocity;
+            dragScrollMaxVelocity       = _dragScrollMaxVelocity,
+            cellSize                    = _cellSize ;
 
 #pragma mark -
 #pragma mark View Management
@@ -271,7 +271,7 @@
     return cell;
 }
 
-- (NSRange)visibleCells
+- (NSRange)visibleCellRange
 {
     NSRange visibleCellRange;
     
@@ -301,13 +301,18 @@
     return visibleCellRange;
 }
 
+- (NSArray *)visibleCells
+{
+    return [NSArray arrayWithArray: _visibleCells];
+}
+
 /* layoutCells handles all of the recycling/dequeing of cells as the scrollview is scrolling */
 - (void)layoutCells
 {
     if( _numberOfCells == 0 || _pauseCellLayout )
         return;
     
-    _visibleCellRange = [self visibleCells];
+    _visibleCellRange = [self visibleCellRange];
     
     for( TOGridViewCell *cell in _visibleCells )
     {
@@ -782,7 +787,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
         _pauseCellLayout = YES;
         
         //set up any new cells that will need to slide down into view
-        NSRange newVisibleCells = [self visibleCells];
+        NSRange newVisibleCells = [self visibleCellRange];
         
         //The next cell index below the old to use as the origin basis for all the new cells we create down there
         NSInteger originCell = (newVisibleCells.location-1);
@@ -1038,7 +1043,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
             }
             
             //Now that the cells are out of the hierarchy, re-calculate which cells should be visible on screen now
-            NSRange newVisibleCells = [self visibleCells];
+            NSRange newVisibleCells = [self visibleCellRange];
             //The next cell index below the old to use as the origin basis for all the new cells we create down there
             //NSInteger originCell = (ceil((self.contentOffset.y+CGRectGetHeight(self.bounds)) / _rowHeight) + 1)*_numberOfCellsPerRow;
             NSInteger originCell = (newVisibleCells.location+newVisibleCells.length);
@@ -1237,6 +1242,54 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     }
     
     return [NSArray arrayWithArray: selectedCells];
+}
+
+- (BOOL)selectCellAtIndex: (NSInteger)index
+{
+    return [self selectCellsAtIndices: [NSArray arrayWithObject: [NSNumber numberWithInteger: index]]];
+}
+
+- (BOOL)selectCellsAtIndices: (NSArray *)indices
+{
+    for( NSNumber *index in indices )
+    {
+        NSInteger cellIndex = [index integerValue];
+        
+        //update the entry in the array to 'selected'
+        [_selectedCells removeObjectAtIndex: cellIndex];
+        [_selectedCells insertObject: [NSNumber numberWithBool: YES] atIndex: cellIndex];
+        
+        //if the cell is visible on-screen, set its state to selected
+        TOGridViewCell *cell = [self cellForIndex: cellIndex];
+        if( cell )
+            [cell setSelected: YES animated: NO];
+    }
+    
+    return YES;
+}
+
+- (BOOL)deselectCellAtIndex: (NSInteger)index
+{
+    return [self deselectCellsAtIndices: [NSArray arrayWithObject: [NSNumber numberWithInteger: index]]];
+}
+
+- (BOOL)deselectCellsAtIndices: (NSArray *)indices
+{
+    for( NSNumber *index in indices )
+    {
+        NSInteger cellIndex = [index integerValue];
+        
+        //update the entry in the array to 'selected'
+        [_selectedCells removeObjectAtIndex: cellIndex];
+        [_selectedCells insertObject: [NSNumber numberWithBool: NO] atIndex: cellIndex];
+        
+        //if the cell is visible on-screen, set its state to selected
+        TOGridViewCell *cell = [self cellForIndex: cellIndex];
+        if( cell )
+            [cell setSelected: NO animated: NO];
+    }
+    
+    return YES;
 }
 
 #pragma mark -

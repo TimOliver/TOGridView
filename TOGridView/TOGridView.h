@@ -167,14 +167,17 @@ typedef enum {
 @property (nonatomic,assign) BOOL                         editing;                      /* Whether the grid view is in an editing state now. */
 @property (nonatomic,assign) BOOL                         nonRetinaRenderContexts;      /* If the grid view has a lot of complex cells, setting this can help boost animation performance at a visual expense on Retina devices. */
 @property (nonatomic,assign) NSInteger                    dragScrollBoundaryDistance;   /* The distance, in points, from the top of the view downwards that will trigger auto-scrolling when dragging a cell (Same for the bottom). Default is 60 points. */
-@property (nonatomic,assign) CGFloat                      dragScrollMaxVelocity;        /* The maximum velocity the view will scroll at when dragging (Ramped up from 0 the closer the finger is to the view boundary). Default is 15 points. */
-
+@property (nonatomic,assign) CGFloat                      dragScrollMaxVelocity;        /* The maximum velocity the view will scroll at when dragging (Ramped up from 0 the closer the finger is to the view boundary). Default is 15 points. */                /* Main array of visible cells */
+@property (nonatomic,readonly) CGSize                     cellSize;                     /* The unmodified sizes of each cell. */
 
 /* Init the class, and register the cell class to use at the same time. (Else the default TOGridViewCell class is implemented) */
 - (id)initWithFrame:(CGRect)frame withCellClass: (Class)cellClass;
 
 /* Register the class that is used to spawn new cell views */
 - (void)registerCellClass: (Class)cellClass;
+
+/* Get the cell object for a specific index (nil if invisible) */
+- (TOGridViewCell *)cellForIndex: (NSInteger)index;
 
 /* Dequeue a recycled cell for reuse */
 - (TOGridViewCell *)dequeReusableCell;
@@ -183,7 +186,7 @@ typedef enum {
 - (UIView *)dequeueReusableDecorationView;
 
 /* The range of cells currently visible */
-- (NSRange)visibleCells;
+- (NSRange)visibleCellRange;
 
 /* Add new cells */
 - (BOOL)insertCellAtIndex: (NSInteger)index animated: (BOOL)animated;
@@ -215,8 +218,20 @@ typedef enum {
 /* Get a list of indices of selected cells */
 - (NSArray *)indicesOfSelectedCells;
 
+/* Set cells to their selected state in edit mode */
+- (BOOL)selectCellAtIndex: (NSInteger)index;
+- (BOOL)selectCellsAtIndices: (NSArray *)indices;
+
+/* Deselect cells when in edit mode */
+- (BOOL)deselectCellAtIndex: (NSInteger)index;
+- (BOOL)deselectCellsAtIndices: (NSArray *)indices;
+
 /* Scroll to a specific cell in the index */
 - (void)scrollToCellAtIndex: (NSInteger)cellIndex toPosition: (TOGridViewScrollPosition)position animated: (BOOL)animated completed: (void (^)(void))completed;
+
+/* All of the cells currently visible on screen */
+- (NSArray *)visibleCells;
+
 @end
 
 /*  

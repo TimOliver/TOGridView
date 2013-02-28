@@ -51,6 +51,10 @@
         self.autoresizesSubviews = YES;
         self.exclusiveTouch = YES;
         self.multipleTouchEnabled = NO;
+        
+        //Crunch the cells into bitmaps so they render faster
+        self.layer.shouldRasterize = YES;
+        self.layer.rasterizationScale = [[UIScreen mainScreen] scale];
     }
     
     return self;
