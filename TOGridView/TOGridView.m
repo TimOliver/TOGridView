@@ -40,6 +40,7 @@
 - (NSInteger)indexOfCellAtPoint: (CGPoint)point;
 - (void)updateCellsLayoutWithDraggedCellAtPoint: (CGPoint)dragPanPoint;
 - (void)cancelDraggingCell;
+- (void)performAutoAlignHeaderView;
 
 @end
 
@@ -52,7 +53,7 @@
             nonRetinaRenderContexts     = _nonRetinaRenderContexts,
             dragScrollBoundaryDistance  = _dragScrollBoundaryDistance,
             dragScrollMaxVelocity       = _dragScrollMaxVelocity,
-            cellSize                    = _cellSize ;
+            cellSize                    = _cellSize;
 
 #pragma mark -
 #pragma mark View Management
@@ -82,6 +83,7 @@
         _dragScrollBoundaryDistance = 60;
         _dragScrollMaxVelocity      = 15;
         
+        // Default state handling for touch events
         _longPressIndex             = -1;
         _cellIndexBeingDraggedOver  = -1;
     }
@@ -92,9 +94,7 @@
 - (id)initWithFrame:(CGRect)frame withCellClass:(Class)cellClass
 {
     if( self = [self initWithFrame: frame] )
-    {
         [self registerCellClass: cellClass];
-    }
     
     return self;
 }
@@ -138,9 +138,10 @@
     /* Set up an array to track the selected state of each cell */
     _selectedCells = nil;
     _selectedCells = [NSMutableArray arrayWithCapacity: _numberOfCells];
-    for( NSInteger i = 0; i < _numberOfCells; i++ )
-        [_selectedCells addObject: [NSNumber numberWithBool: FALSE]];
-
+  
+    /* Remove any existing cells */
+    [self invalidateVisibleCells];
+    
     /* Perform a redraw operation */
     [self layoutCells];
 }
@@ -303,7 +304,7 @@
 
 - (NSArray *)visibleCells
 {
-    return [NSArray arrayWithArray: _visibleCells];
+    return _visibleCells;
 }
 
 /* layoutCells handles all of the recycling/dequeing of cells as the scrollview is scrolling */
@@ -353,7 +354,7 @@
         [cell setHighlighted: NO animated: NO];
         
         //if the cell has been selected, highlight it
-        if( _isEditing && [[_selectedCells objectAtIndex: cell.index] boolValue] == YES )
+        if( _isEditing && [_selectedCells indexOfObject: [NSNumber numberWithInteger:cell.index]] != NSNotFound )
             [cell setSelected: YES animated: NO];
         else
             [cell setSelected: NO animated: NO];
@@ -398,17 +399,6 @@ views over the top of the scrollview, and cross-fade animates between the two fo
 - (void)layoutSubviews
 {
     [super layoutSubviews];
-    
-    /* 
-     Bit of a sneaky hack here. We've got two interesting scenarios happening:
-     -The first-gen iPad has a slow GPU (meaning lots of blending runs chuggy), but can bake entire views to UIImage REALLY fast (presumably because the views are non-Retina)
-     -The third-gen iPad has a kickass GPU (meaning tonnes of blending is easy), but its CPU (While faster than the iPad 1), has to cope with rendering retina UIImages. When rendering 2 Retina images, the latency is impressively slow
-     
-     In order to get optimal render time+animation on both platforms, the following is happening:
-     - On non-Retina devices, the before and after bitmaps are rendered and the cells are hidden throughout the animation (Only 1 alpha blend is happening, so iPad 1 is happy)
-     - On Retina devices, only the first bitmap is rendered, which is then cross-faded with the live cells (The iPad 3 can handle manually blending multiple cells, but iPad 1 cannot without a serious FPS hit)
-    */
-    BOOL isRetinaDevice = [[UIScreen mainScreen] scale] > 1.0f;
     
     /* Apply the crossfade effect if this method is being called while there is a pending 'bounds' animation present. */
     /* Capture the 'before' state to UIImageView before we reposition all of the cells */
@@ -489,14 +479,11 @@ views over the top of the scrollview, and cross-fade animates between the two fo
         [self.layer addAnimation: boundsAnimation forKey: @"bounds"];
         
         //Bake the 'after' snapshot to the second imageView (only if we're a non-retina device) and get it ready for display
-        if( !isRetinaDevice )
-        {
-            _afterSnapshot          = [[UIImageView alloc] initWithImage: [self snapshotOfCellsInRect: self.bounds]];
-            _afterSnapshot.alpha    = 1.0f;
-            _afterSnapshot.frame    = CGRectMake( CGRectGetMinX(self.frame), CGRectGetMinY(self.frame), CGRectGetWidth(self.bounds), CGRectGetHeight(self.bounds));
-            [_afterSnapshot.layer removeAllAnimations];
-        }
-        
+        _afterSnapshot          = [[UIImageView alloc] initWithImage: [self snapshotOfCellsInRect: self.bounds]];
+        _afterSnapshot.alpha    = 1.0f;
+        _afterSnapshot.frame    = CGRectMake( CGRectGetMinX(self.frame), CGRectGetMinY(self.frame), CGRectGetWidth(self.bounds), CGRectGetHeight(self.bounds));
+        [_afterSnapshot.layer removeAllAnimations];
+
         //Get the 'before' snapshot ready
         _beforeSnapshot.frame       = CGRectMake( CGRectGetMinX(self.frame), CGRectGetMinY(self.frame), CGRectGetWidth(_beforeSnapshot.frame), CGRectGetHeight(_beforeSnapshot.frame));
         _beforeSnapshot.alpha       = 0.0f;
@@ -509,22 +496,8 @@ views over the top of the scrollview, and cross-fade animates between the two fo
             [cell.layer removeAllAnimations];
             for( UIView *subview in cell.subviews )
                 [subview.layer removeAllAnimations];
-            
-            //If we're animating between 2 snapshots, just hide the cells (MASSIVE performance boost on iPad 1)
-            if( !isRetinaDevice )
-            {
-                cell.hidden = YES; //Hide all of the visible cells
-            }
-            else
-            {
-                //Apply a CABasicAnimation to each cell to animate its opacity
-                CABasicAnimation *opacity   = [CABasicAnimation animationWithKeyPath: @"opacity"];
-                opacity.timingFunction      = boundsAnimation.timingFunction;
-                opacity.fromValue           = [NSNumber numberWithFloat: 0.0f];
-                opacity.toValue             = [NSNumber numberWithFloat: 1.0f];
-                opacity.duration            = boundsAnimation.duration;
-                [cell.layer addAnimation: opacity forKey: @"opacity"];
-            }
+
+            cell.hidden = YES; //Hide all of the visible cells
         }
         
         //add the 'before' snapshot (Turns out it's better performance to add it to our superview rather than as a subview)
@@ -537,17 +510,14 @@ views over the top of the scrollview, and cross-fade animates between the two fo
         [_beforeSnapshot.layer addAnimation: opacity forKey: @"opacity"];
         
         //add the 'after' snapshot
-        if( !isRetinaDevice )
-        {
-            [self.superview insertSubview: _afterSnapshot aboveSubview: _beforeSnapshot];
-            
-            opacity                 = [CABasicAnimation animationWithKeyPath: @"opacity"];
-            opacity.timingFunction  = boundsAnimation.timingFunction;
-            opacity.fromValue       = [NSNumber numberWithFloat: 0.0f];
-            opacity.toValue         = [NSNumber numberWithFloat: 1.0f];
-            opacity.duration        = boundsAnimation.duration;
-            [_afterSnapshot.layer addAnimation: opacity forKey: @"opacity"];
-        }
+        [self.superview insertSubview: _afterSnapshot aboveSubview: _beforeSnapshot];
+        
+        opacity                 = [CABasicAnimation animationWithKeyPath: @"opacity"];
+        opacity.timingFunction  = boundsAnimation.timingFunction;
+        opacity.fromValue       = [NSNumber numberWithFloat: 0.0f];
+        opacity.toValue         = [NSNumber numberWithFloat: 1.0f];
+        opacity.duration        = boundsAnimation.duration;
+        [_afterSnapshot.layer addAnimation: opacity forKey: @"opacity"];
     }
     
     /* Update the background view to stay in the background */
@@ -758,12 +728,6 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     //make the new number of cells formal now since we'll need it in a bunch of calculations below
     _numberOfCells = newNumberOfCells;
     
-    for( NSNumber *index in indices)
-    {
-        //set up the master array of selected cells to account for these new cells
-        [_selectedCells insertObject: [NSNumber numberWithBool: NO] atIndex: [index integerValue]];
-    }
-    
     //increment each visible cell to the next index as necessary
     for( TOGridViewCell *cell in _visibleCells )
     {
@@ -773,8 +737,16 @@ views over the top of the scrollview, and cross-fade animates between the two fo
             if( cell.index >= [number integerValue])
                 cellIncrement++;
         }
+      
+        NSNumber *prevIndex = [NSNumber numberWithInteger: cell.index];
         
         cell.index = cell.index + cellIncrement;
+        
+        if( [_selectedCells indexOfObject: prevIndex] != NSNotFound )
+        {
+            [_selectedCells removeObject: prevIndex];
+            [_selectedCells addObject: [NSNumber numberWithInteger: cell.index]];
+        }
         
         //clean up from a potential previous insert animation
         cell.hidden = NO;
@@ -948,13 +920,12 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     
     //go through each cell and work out which cells-to-delete are visible.
     NSMutableArray *visibleCellsToDelete = [NSMutableArray array];
-    NSMutableArray *selectedCellsToDelete = [NSMutableArray array];
     for( NSNumber *number in indices )
     {
         NSInteger deleteIndex = [number integerValue];
 
         //remember the selected cell indices we need to delete
-        [selectedCellsToDelete addObject: [_selectedCells objectAtIndex: deleteIndex]];
+        [_selectedCells removeObject: [NSNumber numberWithInteger: deleteIndex]];
         
         //if the cell is within the visible screen region, prep it for animation
         if( deleteIndex >= _visibleCellRange.location && deleteIndex <= _visibleCellRange.location + _visibleCellRange.length)
@@ -973,9 +944,6 @@ views over the top of the scrollview, and cross-fade animates between the two fo
         if( deleteIndex <= firstCellToAnimate )
             firstCellToAnimate = deleteIndex;
     }
-
-    //remove the objects from the selectedCells
-    [_selectedCells removeObjectsInArray: selectedCellsToDelete];
     
     //work out what the new index for each visible cell will be after the targeted cells have been deleted
     for( TOGridViewCell *cell in _visibleCells )
@@ -989,10 +957,17 @@ views over the top of the scrollview, and cross-fade animates between the two fo
         
         //Check to see if this cell is after the lowest cell in the deletion stack
         BOOL shouldAnimateFromFirstVisibleCell = (cell.index == _visibleCellRange.location) && cell.index > firstCellToAnimate;
+        NSNumber *prevIndex = [NSNumber numberWithInteger: cell.index];
         
         //Set the new index for this cell after the targeted cells are removed around it.
         //cap it off at 0 (If it's negative, it's definitely going to get deleted) to prevent any strange wrapping 
         cell.index = MAX(0,cell.index - offset);
+        
+        if(  [_selectedCells indexOfObject: prevIndex] != NSNotFound )
+        {
+            [_selectedCells removeObject: prevIndex];
+            [_selectedCells addObject: [NSNumber numberWithInteger: cell.index]];
+        }
         
         if( shouldAnimateFromFirstVisibleCell )
             firstCellToAnimate = cell.index;
@@ -1233,15 +1208,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
 
 - (NSArray *)indicesOfSelectedCells
 {
-    NSMutableArray *selectedCells = [NSMutableArray array];
-    
-    for( NSInteger i = 0; i < [_selectedCells count]; i++ )
-    {
-        if( [[_selectedCells objectAtIndex: i] boolValue] )
-            [selectedCells addObject: [NSNumber numberWithInt: i]];
-    }
-    
-    return [NSArray arrayWithArray: selectedCells];
+    return [NSArray arrayWithArray: _selectedCells];
 }
 
 - (BOOL)selectCellAtIndex: (NSInteger)index
@@ -1255,9 +1222,8 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     {
         NSInteger cellIndex = [index integerValue];
         
-        //update the entry in the array to 'selected'
-        [_selectedCells removeObjectAtIndex: cellIndex];
-        [_selectedCells insertObject: [NSNumber numberWithBool: YES] atIndex: cellIndex];
+        if( [_selectedCells indexOfObject: [NSNumber numberWithInteger: cellIndex]] == NSNotFound )
+            [_selectedCells addObject: [NSNumber numberWithInteger: cellIndex]];
         
         //if the cell is visible on-screen, set its state to selected
         TOGridViewCell *cell = [self cellForIndex: cellIndex];
@@ -1280,8 +1246,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
         NSInteger cellIndex = [index integerValue];
         
         //update the entry in the array to 'selected'
-        [_selectedCells removeObjectAtIndex: cellIndex];
-        [_selectedCells insertObject: [NSNumber numberWithBool: NO] atIndex: cellIndex];
+        [_selectedCells removeObject: [NSNumber numberWithInteger: cellIndex]];
         
         //if the cell is visible on-screen, set its state to selected
         TOGridViewCell *cell = [self cellForIndex: cellIndex];
@@ -1417,7 +1382,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
 
 /* touchesEnded is called if the user releases their finger from the device without panning the scroll view (eg a discrete tap and release) */
 - (void)touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event
-{
+{ 
     UITouch *touch = [touches anyObject];
     
     //The cell under our finger
@@ -1437,20 +1402,22 @@ views over the top of the scrollview, and cross-fade animates between the two fo
         //if there's no cell being dragged (ie, we just tapped a cell), set it to 'selected'
         if( _cellBeingDragged == nil )
         {
-            NSNumber *selectedNumber = [_selectedCells objectAtIndex: cell.index];
-            
             //unhighlight it
             [cell setHighlighted: NO animated: NO];
             
-            //set it to be either selected or unselected
-            if( [selectedNumber boolValue] == NO )
-                [cell setSelected: YES animated: NO];
-            else
-                [cell setSelected: NO animated: NO];
+            NSNumber *cellIndexNumber = [NSNumber numberWithInteger: cell.index];
             
-            //Since NSNumber is not mutable. Pull out the old value in the array and insert the toggled value
-            [_selectedCells removeObjectAtIndex: cell.index];
-            [_selectedCells insertObject: [NSNumber numberWithBool: !([selectedNumber boolValue]) ] atIndex: cell.index];
+            //set it to be either selected or unselected
+            if( [_selectedCells indexOfObject: cellIndexNumber] == NSNotFound )
+            {
+                [cell setSelected: YES animated: NO];
+                [_selectedCells addObject: cellIndexNumber];
+            }
+            else
+            {
+                [cell setSelected: NO animated: NO];
+                [_selectedCells removeObject: cellIndexNumber];
+            }
         }
         else //if there IS a cell being dragged about, handle that now
         {
@@ -1646,8 +1613,6 @@ views over the top of the scrollview, and cross-fade animates between the two fo
         //reset the list of selected cells
         _selectedCells = nil;
         _selectedCells = [NSMutableArray array];
-        for( NSInteger i=0; i<_numberOfCells; i++ )
-            [_selectedCells addObject: [NSNumber numberWithBool: NO]];
     }
     else
     {

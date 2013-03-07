@@ -101,9 +101,9 @@
     if( UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad )
     {
         if( UIInterfaceOrientationIsPortrait( self.interfaceOrientation ) )
-            return CGSizeMake(100, 100);
+            return CGSizeMake(385, 100);
         else
-            return CGSizeMake(100, 100);
+            return CGSizeMake(341, 100);
     }
     else
     {
@@ -124,9 +124,9 @@
     if( UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad )
     {
         if( UIInterfaceOrientationIsPortrait( self.interfaceOrientation ) )
-            return 7;
+            return 2;
         else
-            return 10;
+            return 3;
     }
     else
     {
