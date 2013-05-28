@@ -9,10 +9,6 @@
 #import <UIKit/UIKit.h>
 #import "TOGridView.h"
 
-@interface TOGridViewViewController : UIViewController <TOGridViewDataSource, TOGridViewDelegate> {
-    TOGridView *_gridView;
-    
-    NSMutableArray *_numbers;
-}
+@interface TOGridViewViewController : UIViewController 
 
 @end

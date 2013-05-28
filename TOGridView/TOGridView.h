@@ -67,98 +67,7 @@ typedef enum {
 
 @end
 
-@interface TOGridView : UIScrollView <UIGestureRecognizerDelegate> {
-    /* The class that is used to spawn cells */
-    Class       _cellClass;
-
-    /* The range of cells visible now */
-    NSRange     _visibleCellRange;
-    
-    /* Stores for cells in use, and ones in standby */
-    NSMutableArray *_recycledCells;
-    NSMutableArray *_visibleCells;
-
-    /* Decoration views */
-    NSMutableSet *_recyledDecorationViews;
-    NSMutableSet *_visibleDecorationViews;
-    
-    /* An array of all cells, and whether they're selected or not */
-    NSMutableArray *_selectedCells;
-    
-    /* Padding of cells from edge of view */
-    CGSize      _cellPaddingInset;
-    /*Size of each cell (This will become the tappable region) */
-    CGSize      _cellSize;
-    
-    /* Number of cells in grid view */
-    NSInteger _numberOfCells;
-    
-    /* Number of cells per row */
-    NSInteger _numberOfCellsPerRow;
-    
-    /* The width between cells on a single row */
-    NSInteger _widthBetweenCells;
-    
-    /* The height of each row (ie the height of each decoration view) */
-    NSInteger _rowHeight;
-    
-    /* Y-position of where the first row starts, after the header */
-    NSInteger _offsetFromHeader;
-    
-    /* Y-offset of cell, within the row */
-    NSInteger _offsetOfCellsInRow;
-
-    /* The ImageViews to store the before and after snapshots */
-    UIImageView *_beforeSnapshot, *_afterSnapshot;
-    
-    /* Timer to wait for long presses */
-    NSTimer *_longPressTimer;
-    
-    /* We keep track of the last index that fired a 'longPress' event so we know not to do the 'tapped' event when we press up. */
-    NSInteger _longPressIndex;
-    
-    /* Timer that fires at 60FPS to dynamically animate the scrollView */
-    NSTimer *_dragScrollTimer;
-    
-    /* The amount the offset of the scrollview is incremented on each call of the timer*/
-    CGFloat _dragScrollBias;
-    
-    /* While dragging a cell around, this keeps track of which other cell's area it's currently hovering over */
-    NSInteger _cellIndexBeingDraggedOver;
-    
-    /* The specific cell item that's being dragged by the user */
-    TOGridViewCell *_cellBeingDragged;
-    
-    /* The co-ords of the user's fingers from the last touch event to update the drag cell while it's animating */
-    CGPoint _cellDragPoint;
-    
-    /* The distance between the cell's origin and the user's touch position */
-    CGSize _draggedCellOffset;
-    
-    /* Temporarily halt laying out cells if we need to do something manually that causes iOS to call 'layoutSubViews' */
-    __block BOOL _pauseCellLayout;
-    
-    /* If we need to perform an animation that may trigger the cross-fade animation, temporarily disable it here. */
-    __block BOOL _pauseCrossFadeAnimation;
-    
-    /* Store what protocol methods the delegate/dataSource implement to help reduce overhead involved with checking that at runtime */
-    struct {
-        unsigned int dataSourceNumberOfCells;
-        unsigned int dataSourceCellForIndex;
-        unsigned int dataSourceCanMoveCell;
-        unsigned int dataSourceCanEditCell;
-        
-        unsigned int delegateSizeOfCells;
-        unsigned int delegateNumberOfCellsPerRow;
-        unsigned int delegateInnerPadding;
-        unsigned int delegateDecorationView;
-        unsigned int delegateHeightOfRows;
-        unsigned int delegateOffsetOfCellInRow;
-        unsigned int delegateDidTapCell;
-        unsigned int delegateDidLongTapCell;
-        unsigned int delegateDidMoveCell;
-    } _gridViewFlags;
-}
+@interface TOGridView : UIScrollView <UIGestureRecognizerDelegate> 
 
 @property (nonatomic,assign)    id <TOGridViewDataSource>    dataSource;                   /* The object that will provide the grid view with data. */
 @property (nonatomic,assign)    id <TOGridViewDelegate>      delegate;                     /* The object that the grid view will send events to. */
@@ -228,9 +137,6 @@ typedef enum {
 
 /* Scroll to a specific cell in the index */
 - (void)scrollToCellAtIndex: (NSInteger)cellIndex toPosition: (TOGridViewScrollPosition)position animated: (BOOL)animated completed: (void (^)(void))completed;
-
-/* All of the cells currently visible on screen */
-- (NSArray *)visibleCells;
 
 @end
 

@@ -24,17 +24,7 @@
 
 @class TOGridView;
 
-@interface TOGridViewCell : UIView {    
-    
-    /* State tracking that would change the appearence of the cell. */
-    BOOL _isEditing;        /* Whether the cell is currently in an editing state */
-    BOOL _isHighlighted;    /* Cell is currently 'highlighted' (ie, when a user taps it outside of edit mode) */
-    BOOL _isSelected;       /* Cell is 'selected' (eg, when the user is selecting multiple cells for a batch operation) */
-    BOOL _isDragging;       /* Cell is currently being dragged around the screen by the user */
-    
-    /* The view that all of the dynamic content of this cell is added to. */
-    UIView *_contentView;
-}
+@interface TOGridViewCell : UIView
 
 /* Set the state of the cell to editing. Will be called on all visible cells when the grid view enters edit mode */
 - (void)setEditing: (BOOL)editing animated: (BOOL)animated;

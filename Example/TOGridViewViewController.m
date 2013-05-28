@@ -11,7 +11,10 @@
 #import "UIDevice+ScreenIdioms.h"
 #import "TOGridViewTestCell.h"
 
-@interface TOGridViewViewController()
+@interface TOGridViewViewController() <TOGridViewDataSource, TOGridViewDelegate>
+
+@property (nonatomic,strong) TOGridView *gridView;
+@property (nonatomic,strong) NSMutableArray *numbers;
 
 - (void)editButtonTapped: (id)sender;
 - (void)addButtonTapped: (id)sender;
@@ -29,7 +32,7 @@
 #pragma mark - View lifecycle
 - (void)loadView
 {
-    UIView *view = [[UIView alloc] initWithFrame: [[UIScreen mainScreen] applicationFrame] ];
+    UIView *view = [[UIView alloc] initWithFrame:[[UIScreen mainScreen] applicationFrame] ];
     view.backgroundColor = [UIColor blackColor];
     
     self.view = view;
@@ -39,41 +42,41 @@
 {
     [super viewDidLoad];
 
-    _numbers = [NSMutableArray new];
+    self.numbers = [NSMutableArray new];
     for( NSInteger i=0; i < 1024; i++ )
-        [_numbers addObject: [NSNumber numberWithInt:i]];
+        [self.numbers addObject:[NSNumber numberWithInt:i]];
     
-	_gridView = [[TOGridView alloc] initWithFrame: self.view.bounds withCellClass: [TOGridViewTestCell class]];
-    _gridView.autoresizingMask = UIViewAutoresizingFlexibleHeight | UIViewAutoresizingFlexibleWidth;
-    _gridView.delegate = self;
-    _gridView.dataSource = self;
-    [self.view addSubview: _gridView]; 
+	self.gridView = [[TOGridView alloc] initWithFrame:self.view.bounds withCellClass:[TOGridViewTestCell class]];
+    self.gridView.autoresizingMask = UIViewAutoresizingFlexibleHeight | UIViewAutoresizingFlexibleWidth;
+    self.gridView.delegate      = self;
+    self.gridView.dataSource    = self;
+    [self.view addSubview:self.gridView];
      
-    _gridView.backgroundColor = [UIColor colorWithWhite: 0.93f alpha:1.0f];
+    self.gridView.backgroundColor = [UIColor colorWithWhite:0.93f alpha:1.0f];
     //_gridView.backgroundColor = [UIColor blackColor];
     
-    UIView *headerView = [[UIView alloc] initWithFrame: CGRectMake(0, 0, CGRectGetWidth(self.view.bounds), 150)];
+    UIView *headerView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, CGRectGetWidth(self.view.bounds), 150)];
     headerView.backgroundColor = [UIColor colorWithWhite:0.87f alpha:1.0f];
-    _gridView.headerView = headerView;
+    self.gridView.headerView = headerView;
     
     //Add a label to the header view
-    UILabel *testLabel = [[UILabel alloc] initWithFrame: CGRectMake(0,0,150,44)];
+    UILabel *testLabel = [[UILabel alloc] initWithFrame:CGRectMake(0,0,150,44)];
     testLabel.text = @"Header View";
     testLabel.autoresizingMask = UIViewAutoresizingFlexibleBottomMargin | UIViewAutoresizingFlexibleTopMargin | UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleRightMargin;
-    testLabel.font = [UIFont boldSystemFontOfSize: 18.0f];
+    testLabel.font = [UIFont boldSystemFontOfSize:18.0f];
     testLabel.backgroundColor = [UIColor clearColor];
-    testLabel.textColor = [UIColor colorWithWhite: 0.2f alpha: 1.0f];
+    testLabel.textColor = [UIColor colorWithWhite:0.2f alpha:1.0f];
     testLabel.shadowColor = [UIColor whiteColor];
-    testLabel.shadowOffset = CGSizeMake( 0.0f, 1.0f );
+    testLabel.shadowOffset = CGSizeMake(0.0f, 1.0f);
     testLabel.textAlignment = UITextAlignmentCenter;
-    [_gridView.headerView addSubview: testLabel];
-    testLabel.center = _gridView.headerView.center;
+    [self.gridView.headerView addSubview:testLabel];
+    testLabel.center = self.gridView.headerView.center;
     
     //add a slight bevel to the bototm of the header
-    UIView *headerBevel = [[UIView alloc] initWithFrame: CGRectMake(0, _gridView.headerView.frame.size.height-1.0f, _gridView.headerView.frame.size.width, 1.0f)];
+    UIView *headerBevel = [[UIView alloc] initWithFrame: CGRectMake(0, self.gridView.headerView.frame.size.height-1.0f, self.gridView.headerView.frame.size.width, 1.0f)];
     headerBevel.backgroundColor = [UIColor colorWithWhite: 0.8f alpha: 1.0f];
     headerBevel.autoresizingMask = UIViewAutoresizingFlexibleWidth;
-    [_gridView.headerView addSubview: headerBevel];
+    [self.gridView.headerView addSubview:headerBevel];
     
     self.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc] initWithTitle: @"Add" style: UIBarButtonItemStylePlain target: self action: @selector(addButtonTapped:)];
     self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithTitle: @"Edit" style: UIBarButtonItemStylePlain target: self action: @selector(editButtonTapped:)];
@@ -103,7 +106,7 @@
         if( UIInterfaceOrientationIsPortrait( self.interfaceOrientation ) )
             return CGSizeMake(385, 100);
         else
-            return CGSizeMake(341, 100);
+            return CGSizeMake(342, 100);
     }
     else
     {
@@ -165,16 +168,16 @@
 - (void)gridView: (TOGridView *)gridView didMoveCellAtIndex:(NSInteger)prevIndex toIndex:(NSInteger)newIndex
 {
     //reshuffle the numbers in the data source to match the new order
-    NSNumber *number = [_numbers objectAtIndex: prevIndex];
-    [_numbers removeObject: number];
-    [_numbers insertObject: number atIndex: newIndex];
+    NSNumber *number = [self.numbers objectAtIndex: prevIndex];
+    [self.numbers removeObject: number];
+    [self.numbers insertObject: number atIndex: newIndex];
 }
 
 #pragma mark -
 #pragma mark Data Source
 - (NSUInteger)numberOfCellsInGridView:(TOGridView *)gridView
 {
-    return [_numbers count];
+    return [self.numbers count];
 }
 
 - (TOGridViewCell *)gridView:(TOGridView *)gridView cellForIndex:(NSInteger)cellIndex
@@ -196,40 +199,40 @@
 #pragma mark Button Callbacks
 - (void)addButtonTapped:(id)sender
 {
-    if( _gridView.editing == NO )
+    if( self.gridView.editing == NO )
     {
         NSNumber *newNumber = [NSNumber numberWithInteger: 0];
-        [_numbers insertObject: newNumber atIndex: 0];
-        [_gridView insertCellAtIndex: 0 animated: YES];
+        [self.numbers insertObject: newNumber atIndex: 0];
+        [self.gridView insertCellAtIndex: 0 animated: YES];
     }
     else
     {
-        NSArray *selectedCellIndices = [_gridView indicesOfSelectedCells];
+        NSArray *selectedCellIndices = [self.gridView indicesOfSelectedCells];
         
         NSMutableArray *numbersToDelete = [NSMutableArray array];
         for( NSNumber *indexToDelete in selectedCellIndices )
-            [numbersToDelete addObject: [_numbers objectAtIndex: [indexToDelete integerValue]]];
+            [numbersToDelete addObject:[self.numbers objectAtIndex:[indexToDelete integerValue]]];
         
         //remove the entries from the data source
-        [_numbers removeObjectsInArray: numbersToDelete];
+        [self.numbers removeObjectsInArray:numbersToDelete];
         //animate the cells leaving the grid view
-        [_gridView deleteCellsAtIndices: selectedCellIndices animated: YES];
+        [self.gridView deleteCellsAtIndices:selectedCellIndices animated:YES];
     }
 }
 
 -(void)editButtonTapped:(id)sender
 {
-    [_gridView setEditing: !_gridView.editing animated: YES];
+    [self.gridView setEditing:(!_gridView.editing) animated:YES];
     
-    if( _gridView.editing )
+    if (self.gridView.editing)
     {
-        self.navigationItem.rightBarButtonItem.title = @"Done";
-        self.navigationItem.leftBarButtonItem.title = @"Delete";
+        self.navigationItem.rightBarButtonItem.title    = @"Done";
+        self.navigationItem.leftBarButtonItem.title     = @"Delete";
     }
     else
     {
-        self.navigationItem.rightBarButtonItem.title = @"Edit";
-        self.navigationItem.leftBarButtonItem.title = @"Add";
+        self.navigationItem.rightBarButtonItem.title    = @"Edit";
+        self.navigationItem.leftBarButtonItem.title     = @"Add";
     }
 }
 
