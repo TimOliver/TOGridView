@@ -132,9 +132,9 @@
         // Default configuration for the UIScrollView
         self.bounces                    = YES;
         self.scrollsToTop               = YES;
-        self.backgroundColor            = [UIColor blackColor];
         self.scrollEnabled              = YES;
         self.alwaysBounceVertical       = YES;
+        self.backgroundColor            = [UIColor blackColor];
         
         // Disable the ability to tap multiple cells at the same time. (Otherwise it gets REALLY messy)
         self.multipleTouchEnabled       = NO;
@@ -348,10 +348,10 @@
     //The official origin of the first row, accounting for the header size and outer padding
     NSInteger   rowOrigin           = self.offsetFromHeader + self.cellPaddingInset.height;
     CGFloat     contentOffsetY      = self.bounds.origin.y; //bounds.origin on a scrollview contains the best up-to-date contentOffset
-    NSInteger   numberOfRows        = floor(self.numberOfCells / self.numberOfCellsPerRow);
+    NSInteger   numberOfRows        = floor(self.numberOfCells * (1.0f/self.numberOfCellsPerRow));
     
-    NSInteger   firstVisibleRow     = floor((contentOffsetY-rowOrigin) / self.rowHeight);
-    NSInteger   lastVisibleRow      = floor(((contentOffsetY-rowOrigin)+CGRectGetHeight(self.bounds)) / self.rowHeight);
+    NSInteger   firstVisibleRow     = floor((contentOffsetY-rowOrigin) * (1.0f/_rowHeight));
+    NSInteger   lastVisibleRow      = floor(((contentOffsetY-rowOrigin)+CGRectGetHeight(self.bounds)) * (1.0f/self.rowHeight));
     
     //make sure there are actually some visible rows
     if (lastVisibleRow >= 0 && firstVisibleRow <= numberOfRows)
@@ -1412,7 +1412,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
         
         self.cellBeingDragged.center = CGPointMake(panPoint.x + self.draggedCellOffset.width, panPoint.y + self.draggedCellOffset.height);
         
-        /* Update the cells behind the one being dragged with new positions */
+        //Update the cells behind the one being dragged with new positions
         [self updateCellsLayoutWithDraggedCellAtPoint:panPoint];
         
         panPoint.y -= self.bounds.origin.y; //compensate for scroll offset

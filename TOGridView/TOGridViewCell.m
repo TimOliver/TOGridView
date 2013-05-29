@@ -35,10 +35,10 @@
     BOOL _isHighlighted;    /* Cell is currently 'highlighted' (ie, when a user taps it outside of edit mode) */
     BOOL _isSelected;       /* Cell is 'selected' (eg, when the user is selecting multiple cells for a batch operation) */
     BOOL _isDragging;       /* Cell is currently being dragged around the screen by the user */
-}
 
-/* The view that all of the dynamic content of this cell is added to. */
-@property (nonatomic,strong) UIView *contentView;
+    /* The view that all of the dynamic content of this cell is added to. */
+    UIView *_contentView;
+}
 
 @end
 
@@ -53,10 +53,6 @@
         self.autoresizesSubviews = YES;
         self.exclusiveTouch = YES;
         self.multipleTouchEnabled = NO;
-        
-        //Crunch the cells into bitmaps so they render faster
-        self.layer.shouldRasterize = YES;
-        self.layer.rasterizationScale = [[UIScreen mainScreen] scale];
     }
     
     return self;
