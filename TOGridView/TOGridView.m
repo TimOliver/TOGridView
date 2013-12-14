@@ -80,13 +80,13 @@
 /* The ImageViews to store the before and after snapshots */
 @property (nonatomic,strong) UIImageView *beforeSnapshot, *afterSnapshot;
   
-/* We keep track of the last index that fired a 'longPress' event so we know not to do the 'tapped' event when we press up. */
-@property (nonatomic,assign) NSInteger longPressIndex;
+/* Keep track of cancelling touches if needed by our own touch events */
+@property (nonatomic,assign) BOOL cancelTouches;
 
-/* Timer that times how long the user has been tapping down on a cell */
-@property (nonatomic,strong) NSTimer *longPressTimer;
+/* Timer to keep track of how long the user tapped and held a cell */
+@property (nonatomic, strong) NSTimer *longPressTimer;
 
-/* Display link Timer that fires at 60FPS to dynamically animate the scrollView */
+/* Timer that fires at 60FPS to dynamically animate the scrollView */
 @property (nonatomic,strong) NSTimer *dragScrollTimer;
   
 /* The amount the offset of the scrollview is incremented on each call of the timer*/
@@ -162,7 +162,6 @@
         self.dragScrollMaxVelocity      = 15;
         
         // Default state handling for touch events
-        self.longPressIndex             = -1;
         self.cellIndexBeingDraggedOver  = -1;
     }
     
@@ -372,7 +371,7 @@
 
 - (TOGridViewCell *)cellForIndex:(NSInteger)index
 {
-    return [self.visibleCells objectForKey:@(index)];
+    return self.visibleCells[@(index)];
 }
 
 - (NSRange)visibleCellRange
@@ -793,7 +792,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     //Grab a cell that was previously recycled
     if ([self.recycledCells count] > 0)
     {
-        cell = [self.recycledCells objectAtIndex:0];
+        cell = self.recycledCells[0];
         [self.recycledCells removeObject:cell];
         return cell;
     }
@@ -963,7 +962,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
                     if ([self.recycledCells count] == 0)
                         break;
                     
-                    TOGridViewCell *cell = [self.recycledCells objectAtIndex:0];
+                    TOGridViewCell *cell = self.recycledCells[0];
                     if (cell == nil)
                         continue;
                     
@@ -1218,7 +1217,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
                             if ([self.recycledCells count] == 0)
                                 break;
                             
-                            TOGridViewCell *cell = [self.recycledCells objectAtIndex:0];
+                            TOGridViewCell *cell = self.recycledCells[0];
                             if (cell == nil)
                                 continue;
                             
@@ -1415,12 +1414,20 @@ views over the top of the scrollview, and cross-fade animates between the two fo
 /* touchesBagan is initially called when we first touch this view on the screen. There is no delay. */
 - (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event
 {
-    //reset the long press counter
-    self.longPressIndex = -1;
+    //reset this as needed
+    self.cancelTouches = NO;
+    
+    //don't do anything if the scroll view was delecerating
+    if (self.decelerating)
+    {
+        self.cancelTouches = YES;
+        [super touchesBegan:touches withEvent:event];
+        return;
+    }
     
     UITouch *touch = [touches anyObject];
     TOGridViewCell *cell = [self cellInTouch:touch];
-    if (cell)
+    if (cell && !self.decelerating)
     {
         [cell setHighlighted:YES animated:NO];
         
@@ -1445,7 +1452,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
         [self.delegate gridView:self didLongTapCellAtIndex:index];
         
         //let 'touchesEnded' know we already performed the event for this one
-        self.longPressIndex = index;
+        self.cancelTouches = YES;
     }
     else
     {
@@ -1521,7 +1528,10 @@ views over the top of the scrollview, and cross-fade animates between the two fo
 
 /* touchesEnded is called if the user releases their finger from the device without panning the scroll view (eg a discrete tap and release) */
 - (void)touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event
-{ 
+{
+    if (self.cancelTouches)
+        return;
+    
     UITouch *touch = [touches anyObject];
     
     //The cell under our finger
@@ -1535,7 +1545,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     {
         NSInteger index = [self indexOfVisibleCell:cell];
         
-        if (cell && _gridViewFlags.delegateDidTapCell && index != self.longPressIndex)
+        if (cell && _gridViewFlags.delegateDidTapCell)
             [self.delegate gridView:self didTapCellAtIndex:index];
     }
     else //if we WERE editing
@@ -1811,6 +1821,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     else
     {
         [self enumerateCellDictionary:self.visibleCells withBlock:^(NSInteger index, TOGridViewCell *cell) {
+            [cell setSelected:NO animated:NO];
             [cell setEditing:YES animated:animated];
         }];
     }
