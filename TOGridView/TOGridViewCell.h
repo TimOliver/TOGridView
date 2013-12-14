@@ -42,10 +42,6 @@
  this method can be overridden on the cell subclass so it has a chance to set up the views properly. */
 - (void)setNeedsTransparentContent: (BOOL)transparent;
 
-/* Grid view management properties. You probably shouldn't modify these directly. (You can try. It might be hilarious. XD) */
-@property (nonatomic, assign)   NSUInteger index;
-@property (nonatomic, weak)     TOGridView *gridView;
-
 /* Public accessors for the cell state */
 @property (nonatomic, assign)   BOOL editing;
 @property (nonatomic, assign)   BOOL selected;

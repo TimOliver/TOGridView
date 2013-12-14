@@ -38,12 +38,12 @@ typedef enum {
 @protocol TOGridViewDataSource <NSObject>
 
 @required
-- (NSUInteger)numberOfCellsInGridView: (TOGridView *)gridView;
-- (TOGridViewCell *)gridView: (TOGridView *)gridView cellForIndex: (NSInteger)cellIndex;
+- (NSUInteger)numberOfCellsInGridView:(TOGridView *)gridView;
+- (TOGridViewCell *)gridView:(TOGridView *)gridView cellForIndex:(NSInteger)cellIndex;
 
 @optional
-- (BOOL)gridView: (TOGridView *)gridView canMoveCellAtIndex: (NSInteger)cellIndex;
-- (BOOL)gridView: (TOGridView *)gridView canEditCellAtIndex:(NSInteger)cellIndex;
+- (BOOL)gridView:(TOGridView *)gridView canMoveCellAtIndex:(NSInteger)cellIndex;
+- (BOOL)gridView:(TOGridView *)gridView canEditCellAtIndex:(NSInteger)cellIndex;
 
 @end
 
@@ -53,17 +53,17 @@ typedef enum {
 @protocol TOGridViewDelegate <NSObject, UIScrollViewDelegate>
 
 @required
-- (CGSize)sizeOfCellsForGridView: (TOGridView *)gridView;
-- (NSUInteger)numberOfCellsPerRowForGridView: (TOGridView *)gridView;
+- (CGSize)sizeOfCellsForGridView:(TOGridView *)gridView;
+- (NSUInteger)numberOfCellsPerRowForGridView:(TOGridView *)gridView;
 
 @optional
-- (CGSize)innerPaddingForGridView: (TOGridView *)gridView;
-- (UIView *)gridView: (TOGridView *)gridView decorationViewForRowWithIndex: (NSUInteger)rowIndex;
-- (NSUInteger)heightOfRowsInGridView: (TOGridView *)gridView;
-- (NSUInteger)offsetOfCellsInRowsInGridView: (TOGridView *)gridView;
-- (void)gridView: (TOGridView *)gridView didTapCellAtIndex: (NSUInteger)index;
-- (void)gridView: (TOGridView *)gridView didLongTapCellAtIndex: (NSInteger)index;
-- (void)gridView: (TOGridView *)gridView didMoveCellAtIndex: (NSInteger)prevIndex toIndex: (NSInteger)newIndex;
+- (CGSize)innerPaddingForGridView:(TOGridView *)gridView;
+- (UIView *)gridView: (TOGridView *)gridView decorationViewForRowWithIndex:(NSUInteger)rowIndex;
+- (NSUInteger)heightOfRowsInGridView:(TOGridView *)gridView;
+- (NSUInteger)offsetOfCellsInRowsInGridView:(TOGridView *)gridView;
+- (void)gridView:(TOGridView *)gridView didTapCellAtIndex:(NSUInteger)index;
+- (void)gridView:(TOGridView *)gridView didLongTapCellAtIndex:(NSInteger)index;
+- (void)gridView:(TOGridView *)gridView didMoveCellAtIndex:(NSInteger)prevIndex toIndex:(NSInteger)newIndex;
 
 @end
 
@@ -80,13 +80,13 @@ typedef enum {
 @property (nonatomic,readonly)  CGSize                       cellSize;                     /* The unmodified sizes of each cell. */
 
 /* Init the class, and register the cell class to use at the same time. (Else the default TOGridViewCell class is implemented) */
-- (id)initWithFrame:(CGRect)frame withCellClass: (Class)cellClass;
+- (id)initWithFrame:(CGRect)frame withCellClass:(Class)cellClass;
 
 /* Register the class that is used to spawn new cell views */
-- (void)registerCellClass: (Class)cellClass;
+- (void)registerCellClass:(Class)cellClass;
 
 /* Get the cell object for a specific index (nil if invisible) */
-- (TOGridViewCell *)cellForIndex: (NSInteger)index;
+- (TOGridViewCell *)cellForIndex:(NSInteger)index;
 
 /* Dequeue a recycled cell for reuse */
 - (TOGridViewCell *)dequeReusableCell;
@@ -98,19 +98,19 @@ typedef enum {
 - (NSRange)visibleCellRange;
 
 /* Add new cells */
-- (BOOL)insertCellAtIndex: (NSInteger)index animated: (BOOL)animated;
-- (BOOL)insertCellsAtIndices: (NSArray *)indices animated: (BOOL)animated;
+- (BOOL)insertCellAtIndex:(NSInteger)index animated:(BOOL)animated;
+- (BOOL)insertCellsAtIndices:(NSArray *)indices animated:(BOOL)animated;
 
 /* Delete existing cells */
-- (BOOL)deleteCellAtIndex: (NSInteger)index animated: (BOOL)animated;
-- (BOOL)deleteCellsAtIndices: (NSArray *)indices animated: (BOOL)animated;
+- (BOOL)deleteCellAtIndex:(NSInteger)index animated:(BOOL)animated;
+- (BOOL)deleteCellsAtIndices:(NSArray *)indices animated:(BOOL)animated;
 
 /* Reload existing cells */
-- (BOOL)reloadCellAtIndex: (NSInteger)index;
-- (BOOL)reloadCellsAtIndices: (NSArray *)indices;
+- (BOOL)reloadCellAtIndex:(NSInteger)index;
+- (BOOL)reloadCellsAtIndices:(NSArray *)indices;
 
 /* Unhighlight a cell after it had been tapped (As opposed to 'deselecting' in edit mode) */
-- (void)unhighlightCellAtIndex: (NSInteger)index animated: (BOOL)animated;
+- (void)unhighlightCellAtIndex:(NSInteger)index animated:(BOOL)animated;
 
 /* Reload the entire table */
 - (void)reloadGrid;
@@ -119,24 +119,24 @@ typedef enum {
 - (void)setEditing:(BOOL)editing animated:(BOOL)animated;   
 
 /* Used to determine the origin (or center) of a cell at a particular index */
-- (CGPoint)originOfCellAtIndex: (NSInteger)cellIndex;
+- (CGPoint)originOfCellAtIndex:(NSInteger)cellIndex;
 
 /* Used to determine the size of a cell (eg in case specific cells needed to be padded in order to fit) */
-- (CGSize)sizeOfCellAtIndex: (NSInteger)cellIndex;
+- (CGSize)sizeOfCellAtIndex:(NSInteger)cellIndex;
 
 /* Get a list of indices of selected cells */
 - (NSArray *)indicesOfSelectedCells;
 
 /* Set cells to their selected state in edit mode */
-- (BOOL)selectCellAtIndex: (NSInteger)index;
-- (BOOL)selectCellsAtIndices: (NSArray *)indices;
+- (BOOL)selectCellAtIndex:(NSInteger)index;
+- (BOOL)selectCellsAtIndices:(NSArray *)indices;
 
 /* Deselect cells when in edit mode */
-- (BOOL)deselectCellAtIndex: (NSInteger)index;
-- (BOOL)deselectCellsAtIndices: (NSArray *)indices;
+- (BOOL)deselectCellAtIndex:(NSInteger)index;
+- (BOOL)deselectCellsAtIndices:(NSArray *)indices;
 
 /* Scroll to a specific cell in the index */
-- (void)scrollToCellAtIndex: (NSInteger)cellIndex toPosition: (TOGridViewScrollPosition)position animated: (BOOL)animated completed: (void (^)(void))completed;
+- (void)scrollToCellAtIndex:(NSInteger)cellIndex toPosition:(TOGridViewScrollPosition)position animated:(BOOL)animated completed:(void (^)(void))completed;
 
 @end
 

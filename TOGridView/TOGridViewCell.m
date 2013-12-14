@@ -35,10 +35,10 @@
     BOOL _isHighlighted;    /* Cell is currently 'highlighted' (ie, when a user taps it outside of edit mode) */
     BOOL _isSelected;       /* Cell is 'selected' (eg, when the user is selecting multiple cells for a batch operation) */
     BOOL _isDragging;       /* Cell is currently being dragged around the screen by the user */
-
-    /* The view that all of the dynamic content of this cell is added to. */
-    UIView *_contentView;
 }
+
+/* The view that all of the dynamic content of this cell is added to. */
+@property (nonatomic,strong) UIView *contentView;
 
 @end
 
@@ -56,12 +56,6 @@
     }
     
     return self;
-}
-
-- (void)dealloc
-{
-    //remove soft references on dealloc
-    self.gridView = nil;
 }
 
 #pragma mark -
@@ -149,53 +143,6 @@
 - (void)setDragging:(BOOL)dragging animated:(BOOL)animated
 {
     [self.superview bringSubviewToFront:self];
-
-    //The original transformation state and a slightly scaled version
-    CGAffineTransform originTransform   = CGAffineTransformIdentity;
-    CGAffineTransform destTransform     = CGAffineTransformScale(originTransform, 1.1f, 1.1f);
-    
-    //The original alpha (fully opaque) and slightly transparent 
-    CGFloat originAlpha = 1.0f;
-    CGFloat destAlpha   = 0.6f;
-    
-    if (animated)
-    {
-        //Perform the animation
-        [UIView animateWithDuration:0.20f delay:0.0f options:UIViewAnimationOptionCurveEaseOut animations:^{
-            if (dragging)
-            {
-                self.transform  = destTransform;
-                self.alpha      = destAlpha;
-            }
-            else
-            {
-                self.transform  = originTransform;
-                self.alpha      = originAlpha;
-                
-                CGRect frame = self.frame;
-                frame.origin = [self.gridView originOfCellAtIndex:self.index];
-                self.frame = frame;
-            }
-        } completion:nil];
-    }
-    else
-    {
-        /* Set the new values */
-        if (dragging)
-        {
-            self.transform = destTransform;
-            self.alpha = destAlpha;
-        }
-        else
-        {
-            self.transform = originTransform;
-            self.alpha = originAlpha;
-            
-            CGRect frame = self.frame;
-            frame.origin = [_gridView originOfCellAtIndex:self.index];
-            self.frame = frame;
-        }
-    }
 }
 
 - (void)setSelected:(BOOL)selected animated:(BOOL)animated

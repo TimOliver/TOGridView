@@ -43,7 +43,7 @@
     [super viewDidLoad];
 
     self.numbers = [NSMutableArray new];
-    for( NSInteger i=0; i < 50; i++ )
+    for( NSInteger i=0; i < 1024; i++ )
         [self.numbers addObject:[NSNumber numberWithInt:i]];
     
 	self.gridView = [[TOGridView alloc] initWithFrame:self.view.bounds withCellClass:[TOGridViewTestCell class]];
@@ -184,8 +184,8 @@
 {
     TOGridViewTestCell *cell = (TOGridViewTestCell *)[_gridView dequeReusableCell];
     
-    //NSInteger cellNum = [[_numbers objectAtIndex: cellIndex] intValue];
-    cell.textLabel.text = @"Test cell";//[NSString stringWithFormat: @"Cell %d", cellNum];
+    NSInteger cellNum = [[_numbers objectAtIndex: cellIndex] intValue];
+    cell.textLabel.text = [NSString stringWithFormat: @"Cell %d", cellNum];
     
     return cell;
 }

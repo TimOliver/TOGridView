@@ -7,7 +7,6 @@
 //
 
 #import "TOGridViewTestCell.h"
-#import <QuartzCore/QuartzCore.h>
 
 @implementation TOGridViewTestCell
 
@@ -20,11 +19,10 @@
         self.opaque = YES;
         self.backgroundColor = [UIColor colorWithWhite: 0.96f alpha: 1.0f];
         
-        UIImage *bg         = [UIImage imageNamed:@"CellBG.png"];
-        self.backgroundView = [[UIImageView alloc] initWithImage:[bg resizableImageWithCapInsets: UIEdgeInsetsMake(2, 2, 2, 2)]];
-        self.backgroundView.layer.shouldRasterize = YES;
-        
-        UIImage *bgPressed              = [UIImage imageNamed:@"CellBGPressed.png"];
+        UIImage *bg         = [[UIImage alloc] initWithContentsOfFile: [[NSBundle mainBundle] pathForResource: @"CellBG" ofType: @"png"]];
+        self.backgroundView = [[UIImageView alloc] initWithImage: [bg resizableImageWithCapInsets: UIEdgeInsetsMake(2, 2, 2, 2)]];
+            
+        UIImage *bgPressed              = [[UIImage alloc] initWithContentsOfFile: [[NSBundle mainBundle] pathForResource: @"CellBGPressed" ofType: @"png"]];
         self.highlightedBackgroundView  = [[UIImageView alloc] initWithImage: [bgPressed resizableImageWithCapInsets: UIEdgeInsetsMake(2, 2, 2, 2)]];
         
         self.selectedBackgroundView = self.highlightedBackgroundView;
