@@ -57,7 +57,7 @@ typedef enum {
 - (NSUInteger)numberOfCellsPerRowForGridView:(TOGridView *)gridView;
 
 @optional
-- (CGSize)innerPaddingForGridView:(TOGridView *)gridView;
+- (CGSize)boundaryMarginsForGridView:(TOGridView *)gridView;
 - (UIView *)gridView: (TOGridView *)gridView decorationViewForRowWithIndex:(NSUInteger)rowIndex;
 - (NSUInteger)heightOfRowsInGridView:(TOGridView *)gridView;
 - (NSUInteger)offsetOfCellsInRowsInGridView:(TOGridView *)gridView;
