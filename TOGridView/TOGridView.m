@@ -523,6 +523,8 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     again, which sadly, introduces a bit of extra overhead.
     */
     
+    NSLog(@"layoutSubviews");
+    
     /* Apply the crossfade effect if this method is being called while there is a pending 'bounds' animation present. */
     /* Capture the 'before' state to UIImageView before we reposition all of the cells */
     CABasicAnimation *boundsAnimation = (CABasicAnimation *)[self.layer animationForKey:@"bounds"];
