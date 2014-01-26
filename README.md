@@ -7,23 +7,23 @@
 | 
 [Landscape Screenshot](https://raw.github.com/TimOliver/TOGridView/master/Screenshots/iPad_Landscape.jpg)
 
-## WTF is this thing?
+## What exactly is this thing?
 
 TOGridView is a class I'm developing for implementation into my commercial iOS app [iComics](http://icomics.co/). Given the relatively
 large size and complexity of this class, coupled with its flexibility for potential reuse in future projects, I'm making it a completely separate project,
 and open-sourcing it on GitHub.
 
-## ANOTHER collection view? You know other people, including Apple have already done this right?
+## Given UICollectionView in iOS 6, what was the point of building this?
 
-Yeah... I realise this. And believe me, I love reinventing the wheel as much as the next guy. ^_^; 
-However, after doing TONNES of research into the matter, including researching UICollectionView as well as
-several of the open-source collection/grid views on GitHub, I eventually came to the conclusion that it would be best for iComics if I wrote my own.
+When looking at potential 'grid view' libraries for iComics, I did a thorough review of not just UICollectionView, but also a lot of the third party
+grid view libraries that existed before it. As it turned out, I wasn't completely happy with any of the other options for variosu reasons.
 
-Reasons for this include:
+Several of the major reasons for writing my own included:
 
   * UICollectionView is iOS 6 exclusive. Since I want iComics to support the first gen iPad (Which only goes up to iOS 5), it's not an option. 
   * All of the other collection view classes are designed to be as flexible as possible, which also means they're very complex, with huge learning curves. I'm creating this class only with iComics' design requirements in mind, with the idea that it can be streamlined and optimised much more easily than those larger classes. 
-  * I have not seen a SINGLE class (UICollectionView included) that elegantly animates interface orientation changes at 60FPS on all iOS devices. I plan to fix this. :D
+  * Additionally, a lot of the third party library classes have really 'boilerplate' animations when it comes to adding/moving/deleting cells. Writing my own let me add my own flair to the built-in animations of the view.
+  * I have not seen a SINGLE class (UICollectionView included) that elegantly animates interface orientation changes at 60FPS on all iOS devices. I want TOGridView to be the first. :D
 
 ## Features
 
@@ -32,7 +32,7 @@ Reasons for this include:
   * Cells will crossfade upon orientation change. (Using a technique that was covered at WWDC 2012)
   * Cells can be inserted/deleted on the fly without forcing a complete reload.
   * In edit mode, cells can be deleted or re-ordered (ala the iOS Home Screen)
-  * (TODO) Each row can have a decoraton view placed in the background (eg a shelf graphic)
+  * (STILL TODO) Each row can have a decoraton view placed in the background (eg a shelf graphic)
 
 ## License
 
