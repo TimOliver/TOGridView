@@ -5,19 +5,19 @@
 	<key>IDESourceControlProjectFavoriteDictionaryKey</key>
 	<false/>
 	<key>IDESourceControlProjectIdentifier</key>
-	<string>7D1CB6CC-C591-4FB2-B3D1-985A1A246A0A</string>
+	<string>AA171A69-5720-471D-A6C2-728D6C6659F5</string>
 	<key>IDESourceControlProjectName</key>
 	<string>TOGridViewExample</string>
 	<key>IDESourceControlProjectOriginsDictionary</key>
 	<dict>
-		<key>F30BA222-1EF4-4C05-8792-87DD16156FF8</key>
+		<key>059D0B34-0539-4B83-87B8-29FEE3A7D6E4</key>
 		<string>https://github.com/TimOliver/TOGridView.git</string>
 	</dict>
 	<key>IDESourceControlProjectPath</key>
 	<string>TOGridViewExample.xcodeproj/project.xcworkspace</string>
 	<key>IDESourceControlProjectRelativeInstallPathDictionary</key>
 	<dict>
-		<key>F30BA222-1EF4-4C05-8792-87DD16156FF8</key>
+		<key>059D0B34-0539-4B83-87B8-29FEE3A7D6E4</key>
 		<string>../..</string>
 	</dict>
 	<key>IDESourceControlProjectURL</key>
@@ -25,14 +25,14 @@
 	<key>IDESourceControlProjectVersion</key>
 	<integer>110</integer>
 	<key>IDESourceControlProjectWCCIdentifier</key>
-	<string>F30BA222-1EF4-4C05-8792-87DD16156FF8</string>
+	<string>059D0B34-0539-4B83-87B8-29FEE3A7D6E4</string>
 	<key>IDESourceControlProjectWCConfigurations</key>
 	<array>
 		<dict>
 			<key>IDESourceControlRepositoryExtensionIdentifierKey</key>
 			<string>public.vcs.git</string>
 			<key>IDESourceControlWCCIdentifierKey</key>
-			<string>F30BA222-1EF4-4C05-8792-87DD16156FF8</string>
+			<string>059D0B34-0539-4B83-87B8-29FEE3A7D6E4</string>
 			<key>IDESourceControlWCCName</key>
 			<string>TOGridView</string>
 		</dict>

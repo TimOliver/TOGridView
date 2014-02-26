@@ -42,6 +42,9 @@
 {
     [super viewDidLoad];
 
+    //disable translucency for benchmarking performance
+    self.navigationController.navigationBar.translucent = NO;
+    
     self.numbers = [NSMutableArray new];
     for (NSInteger i=0; i < 1024; i++)
         [self.numbers addObject:[NSNumber numberWithInt:i]];
@@ -94,7 +97,7 @@
 
 #pragma mark -
 #pragma mark Delegate
-- (CGSize)boundaryMarginsForGridView:(TOGridView *)gridView
+- (CGSize)boundaryInsetsForGridView:(TOGridView *)gridView
 {
     return CGSizeMake(-1.0f, 0.0f);
 }
