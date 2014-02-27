@@ -463,14 +463,20 @@
         NSInteger index = visibleCellRange.location+i;
         
         TOGridViewCell *cell = [self cellForIndex:index];
-        if (cell || index == self.draggingCellIndex) //if we already have a cell
+        if (cell) //if we already have a cell
             continue;
         
+        //we need to lay out the cells in there with the dragging cell excluded
+        //(eg, every cell index past the dragging index bumped up by 1)
+        NSInteger indexOffset = 0;
+        if (self.draggingCellIndex >= 0 && index >= self.draggingCellIndex)
+            indexOffset = 1;
+
         //disable animations
         [UIView setAnimationsEnabled:NO];
         
         //Get the cell with its content setup from the dataSource
-        cell = [self.dataSource gridView:self cellForIndex:index];
+        cell = [self.dataSource gridView:self cellForIndex:index + indexOffset];
         
         cell.hidden = NO;
         [cell setHighlighted:NO animated:NO];
@@ -722,7 +728,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
         cell.frame = frame;
         
         //animate it with a slight delay depending on how far away it was from the origin, so it looks a little more fluid
-        [UIView animateWithDuration:0.25f delay:0.05f*delta options:UIViewAnimationOptionCurveEaseInOut animations:^{
+        [UIView animateWithDuration:0.25f delay:0.00f*delta options:UIViewAnimationOptionCurveEaseInOut animations:^{
             CGFloat y = frame.origin.y;
             frame.origin = [self originOfCellAtIndex:newIndex];
             
@@ -1031,7 +1037,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     NSMutableArray *visibleCellsToDelete = [NSMutableArray array];
     for (NSNumber *number in indices)
     {
-        NSInteger deleteIndex = [number integerValue];
+        NSInteger deleteIndex = number.integerValue;
 
         //remember the selected cell indices we need to delete
         [self.selectedCells removeObject:number];
@@ -1060,12 +1066,12 @@ views over the top of the scrollview, and cross-fade animates between the two fo
         NSInteger offset = 0;
         for (NSNumber *number in indices)
         {
-            if (index >= [number integerValue])
+            if (index >= number.integerValue)
                 offset++;
         }
         
         //Check to see if this cell is after the lowest cell in the deletion stack
-        BOOL shouldAnimateFromFirstVisibleCell = (index == visibleCellRange.location) && index > firstCellToAnimate;
+        BOOL shouldAnimateFromFirstVisibleCell = (index == visibleCellRange.location && index > firstCellToAnimate);
         
         //Set the new index for this cell after the targeted cells are removed around it.
         //cap it off at 0 (If it's negative, it's definitely going to get deleted) to prevent any strange wrapping
@@ -1330,7 +1336,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     offset.y = MIN(self.contentSize.height - CGRectGetHeight(self.bounds), offset.y);
     self.contentOffset = offset;
     
-    //update the cell drawing
+    //layout cells now that the scroll offset has changed
     [self layoutCells];
     
     CGPoint adjustedDragPoint = self.draggingCellPanPoint;
