@@ -53,32 +53,32 @@
 
 /* The class that is used to spawn cells */
 @property (nonatomic, assign) Class cellClass;
-  
-  /* Stores for cells in use, and ones in standby */
+
+/* Stores for cells in use, and ones in standby */
 @property (nonatomic, strong) NSMutableArray *recycledCells;
 @property (nonatomic, strong) NSMutableDictionary *visibleCells;
-  
-  /* Decoration views */
+
+/* Decoration views */
 @property (nonatomic, strong) NSMutableSet *recyledDecorationViews;
 @property (nonatomic, strong) NSMutableSet *visibleDecorationViews;
-  
-  /* An array of all cells, and whether they're selected or not */
+
+/* An array of all cells, and whether they're selected or not */
 @property (nonatomic, strong) NSMutableArray *selectedCells;
 
 @property (nonatomic, assign) CGSize cellPaddingInset;  /* Padding of cells from edge of view */
 @property (nonatomic, assign) CGSize cellSize;  /*Size of each cell (This will become the tappable region) */
-  
+
 @property (nonatomic, assign, readwrite) NSInteger numberOfCells;  /* Number of cells in grid view */
 @property (nonatomic, assign, readwrite) NSInteger numberOfCellsPerRow; /* Number of cells per row */
-  
+
 
 @property (nonatomic, assign) NSInteger widthBetweenCells;  /* The width between cells on a single row */
 @property (nonatomic, assign) NSInteger rowHeight; /* The height of each row (ie the height of each decoration view) */
-  
+
 
 @property (nonatomic, assign) NSInteger offsetFromHeader;    /* Y-position of where the first row starts, after the header */
 @property (nonatomic, assign) NSInteger offsetOfCellsInRow;  /* Y-offset of cell, within the row */
-  
+
 /* Keep track of cancelling touches if needed by our own touch events */
 @property (nonatomic, assign) BOOL cancelTouches;
 
@@ -90,7 +90,7 @@
 
 /* Temporarily halt laying out cells if we need to do something manually that causes iOS to call 'layoutSubViews' */
 @property (nonatomic, assign) __block BOOL pauseCellLayout;
-  
+
 /* If we need to perform an animation that may trigger the cross-fade animation, temporarily disable it here. */
 @property (nonatomic, assign) __block BOOL pauseCrossFadeAnimation;
 
@@ -203,7 +203,7 @@
     /* Set up an array to track the selected state of each cell */
     self.selectedCells = nil;
     self.selectedCells = [NSMutableArray arrayWithCapacity:self.numberOfCells];
-  
+    
     /* Remove any existing cells */
     [self invalidateVisibleCells];
     
@@ -237,8 +237,8 @@
     
     /* Work out the spacing between cells */
     self.widthBetweenCells = (NSInteger)floor(((CGRectGetWidth(self.bounds) - (self.cellPaddingInset.width*2)) //Overall width of row
-                                           - (_cellSize.width * self.numberOfCellsPerRow)) //minus the combined width of all cells
-                                          / (self.numberOfCellsPerRow-1)); //divided by the number of gaps between
+                                               - (_cellSize.width * self.numberOfCellsPerRow)) //minus the combined width of all cells
+                                              / (self.numberOfCellsPerRow-1)); //divided by the number of gaps between
     
     /* Set up the scrollview and the subsequent contentView */
     self.contentSize = [self contentSizeOfScrollView];
@@ -286,7 +286,7 @@
     //and this cell is short by uneven necessity of the number of cells per row
     //(eg, 1024/3 on iPad = 341.333333333 pixels per cell :S), pad it out
     if (self.cellPaddingInset.width <= 0.0f + FLT_EPSILON && (cellIndex+1) % self.numberOfCellsPerRow == 0)
-    {        
+    {
         CGPoint org = [self originOfCellAtIndex:cellIndex];
         if (org.x + cellSize.width < CGRectGetWidth(self.bounds) + FLT_EPSILON)
             cellSize.width = CGRectGetWidth(self.bounds) - org.x;
@@ -337,7 +337,7 @@
     NSInteger index = rowIndex + columnIndex;
     index = MAX(-1, index); //if the number of cells is below the start, return -1
     index = MIN(self.numberOfCells-1, index); //cap it at the max number of cells
-
+    
     //return the cell index
     return index;
 }
@@ -448,7 +448,7 @@
             [self.recycledCells addObject:cell];
             return YES;
         }
-            
+        
         return NO;
     }];
     [self.visibleCells removeObjectsForKeys:[cellsToRecyle allObjects]];
@@ -457,7 +457,7 @@
     /* This code produces the most latency, so minimizing its call frequency is critical */
     if ([self.visibleCells count] >= visibleCellRange.length)
         return;
-
+    
     for (NSInteger i = 0; i < visibleCellRange.length; i++)
     {
         NSInteger index = visibleCellRange.location+i;
@@ -466,12 +466,21 @@
         if (cell) //if we already have a cell
             continue;
         
-        //we need to lay out the cells in there with the dragging cell excluded
-        //(eg, every cell index past the dragging index bumped up by 1)
+        //when the user is dragging a cell around in edit mode, the numb
+        //(eg, every cell index past the dragging index bumped up or decreased by 1)
         NSInteger indexOffset = 0;
-        if (self.draggingCellIndex >= 0 && index >= self.draggingCellIndex)
-            indexOffset = 1;
-
+        if (self.draggingCellIndex >= 0) {
+            //if the dragging cell is after its origin
+            if (self.draggingOverIndex >= self.draggingCellIndex) {
+                if (index >= self.draggingCellIndex && index < self.draggingOverIndex)
+                    indexOffset = 1;
+            }
+            else { //the dragging cell was dragged before
+                if (index <= self.draggingCellIndex && index > self.draggingOverIndex)
+                    indexOffset = -1;
+            }
+        }
+        
         //disable animations
         [UIView setAnimationsEnabled:NO];
         
@@ -515,20 +524,20 @@
     }
 }
 
-/* 
-layoutSubviews is called automatically whenever the scrollView's contentOffset changes,
-or when the parent view controller changes orientation.
-
-This orientation animation technique is a modified version of one of the techniques that was 
-presented at WWDC 2012 in the presentation 'Polishing Your Interface Rotations'. It's been designed
-with the goal of handling everything from within the view itself, without requiring any additional work
-on the view controller's behalf.
-
-When the iOS device is physically rotated and the orientation change event fires, (Which is captured here by detecting
-when a CAAnimation object has been applied to the 'bounds' property of the view), the view quickly renders 
-the 'before' and 'after' arrangement of the cells to UIImageViews. It then hides the original cells, overlays both image
-views over the top of the scrollview, and cross-fade animates between the two for the same duration as the rotation animation.
-*/
+/*
+ layoutSubviews is called automatically whenever the scrollView's contentOffset changes,
+ or when the parent view controller changes orientation.
+ 
+ This orientation animation technique is a modified version of one of the techniques that was
+ presented at WWDC 2012 in the presentation 'Polishing Your Interface Rotations'. It's been designed
+ with the goal of handling everything from within the view itself, without requiring any additional work
+ on the view controller's behalf.
+ 
+ When the iOS device is physically rotated and the orientation change event fires, (Which is captured here by detecting
+ when a CAAnimation object has been applied to the 'bounds' property of the view), the view quickly renders
+ the 'before' and 'after' arrangement of the cells to UIImageViews. It then hides the original cells, overlays both image
+ views over the top of the scrollview, and cross-fade animates between the two for the same duration as the rotation animation.
+ */
 - (void)layoutSubviews
 {
     [super layoutSubviews];
@@ -579,8 +588,8 @@ views over the top of the scrollview, and cross-fade animates between the two fo
         //Not sure why, but if we don't do this, periodically, contentOffset resets to [0,0] (possibly as a result of the frame changing) and borks the animation :S
         if (self.contentSize.height - self.bounds.size.height >= self.contentOffset.y)
             self.contentOffset = CGPointMake(0, self.bounds.origin.y);
- 
-         //If the header view is completely hidden (ie, only cells), re-orient the scroll view so the same cells are onscreen in the new orientation
+        
+        //If the header view is completely hidden (ie, only cells), re-orient the scroll view so the same cells are onscreen in the new orientation
         if (self.contentOffset.y - self.offsetFromHeader > 0.0f && yOffsetFromTopOfRow >= 0.0f && visibleCells.location >= self.numberOfCellsPerRow)
         {
             CGFloat y = self.offsetFromHeader + self.cellPaddingInset.height + (self.rowHeight * floor(visibleCells.location/self.numberOfCellsPerRow)) + yOffsetFromTopOfRow;
@@ -588,11 +597,11 @@ views over the top of the scrollview, and cross-fade animates between the two fo
             self.contentOffset = CGPointMake(0,y);
         }
     }
-        
+    
     //lay out all of the cells given the current bounds state
     if (self.pauseCellLayout == NO)
         [self layoutCells];
-
+    
     if (boundsAnimation && self.pauseCrossFadeAnimation == NO)
     {
         //arrange the cells to their new configuration
@@ -603,12 +612,12 @@ views over the top of the scrollview, and cross-fade animates between the two fo
             cell.alpha = 0.0f;
             [UIView animateWithDuration:boundsAnimation.duration animations:^{ cell.alpha = 1.0f; }];
         }];
-
+        
         /*
-            "bounds" stores the scroll offset in its 'origin' property, and the actual size of the view in the 'size' property.
-            Since we DO want the view to animate resizing itself, but we DON'T want it to animate scrolling at the same time, we'll have
-            to modify the animation properties (which is why we made a mutable copy above) and then re-insert it back in.
-        */
+         "bounds" stores the scroll offset in its 'origin' property, and the actual size of the view in the 'size' property.
+         Since we DO want the view to animate resizing itself, but we DON'T want it to animate scrolling at the same time, we'll have
+         to modify the animation properties (which is why we made a mutable copy above) and then re-insert it back in.
+         */
         CGRect beforeRect = [boundsAnimation.fromValue CGRectValue];
         beforeRect.origin.y = self.bounds.origin.y; //set the before and after scrolloffsets to the same value
         boundsAnimation.fromValue = [NSValue valueWithCGRect:beforeRect];
@@ -646,7 +655,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
 - (UIView *)snapshotOfGridViewInRect:(CGRect)rect
 {
     UIView *snapshotView = nil;
-
+    
     UIGraphicsBeginImageContextWithOptions(rect.size, NO, 1.0f);
     {
         CGContextRef context = UIGraphicsGetCurrentContext();
@@ -680,7 +689,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     
     //The direction and number of stops we just moved the cell (eg cell 0 to cell 2 is '2')
     NSInteger offset = -(self.draggingOverIndex - currentlyDraggedOverIndex);
-
+    
     //sort the cell keys into ascending order
     NSArray *cellIndices = [self.visibleCells.allKeys sortedArrayUsingSelector:@selector(compare:)];
     
@@ -720,15 +729,22 @@ views over the top of the scrollview, and cross-fade animates between the two fo
         NSInteger delta = newIndex - self.draggingOverIndex;
         delta = (delta < 0) ? -delta : delta; //64-bit compatible abs()
         
+        //set the cell's original origin
+        __block CGRect frame = CGRectZero;
+        
+        //if the view isn't scrolling, we can use the presentation layer to pause views mid-animation
+        if (self.dragScrollTimer)
+            frame = (CGRect){[self originOfCellAtIndex:index], [self sizeOfCellAtIndex:index]};
+        else
+            frame = [cell.layer.presentationLayer frame];
+        
+        cell.frame = frame;
+        
         //kill any pending animations
         [cell.layer removeAllAnimations];
         
-        //set the cell's original origin
-        __block CGRect frame = (CGRect){[self originOfCellAtIndex:index], [self sizeOfCellAtIndex:index]};
-        cell.frame = frame;
-        
         //animate it with a slight delay depending on how far away it was from the origin, so it looks a little more fluid
-        [UIView animateWithDuration:0.25f delay:0.00f*delta options:UIViewAnimationOptionCurveEaseInOut animations:^{
+        [UIView animateWithDuration:0.25f delay:0.05f*delta options:UIViewAnimationOptionCurveEaseInOut animations:^{
             CGFloat y = frame.origin.y;
             frame.origin = [self originOfCellAtIndex:newIndex];
             
@@ -809,7 +825,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
         [self.recycledCells removeObject:cell];
         return cell;
     }
-
+    
     //If there are no cells available, create a new one and set it up
     cell = [[self.cellClass alloc] initWithFrame:CGRectMake(0, 0, self.cellSize.width, self.cellSize.height)];
     cell.frame = CGRectMake(0, 0, self.cellSize.width, self.cellSize.height);
@@ -849,7 +865,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
             if (index >= number.integerValue)
                 cellIncrement++;
         }
-      
+        
         NSInteger newIndex = index + cellIncrement;
         [updatedCellKeys setObject:@(newIndex) forKey:@(index)];
         
@@ -900,7 +916,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
             frame.size      = [self sizeOfCellAtIndex:newVisibleCells.location+i];
             newCell.frame   = frame;
             [self.visibleCells setObject:newCell forKey:@(newIndex)];
-        
+            
             [self addSubview:newCell];
             
             if (isNewCell)
@@ -934,7 +950,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
             for (NSNumber *number in indices)
             {
                 NSInteger newIndex = [number integerValue];
-               
+                
                 TOGridViewCell *cell = [self cellForIndex:newIndex];
                 if (cell == nil)
                 {
@@ -948,7 +964,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
                     [self.visibleCells setObject:cell forKey:@(newIndex)];
                     [self addSubview:cell];
                 }
-                    
+                
                 //fade it in
                 cell.hidden = NO;
                 cell.alpha  = 0.0f;
@@ -995,7 +1011,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
         }];
         
         [self layoutCells];
-
+        
         self.contentSize = [self contentSizeOfScrollView];
     }
     
@@ -1011,7 +1027,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
 {
     if ([indices count] == 0)
         return YES;
- 
+    
     //cancel the cell dragging if it's active
     if (self.editing)
         [self cancelDraggingCell];
@@ -1038,7 +1054,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     for (NSNumber *number in indices)
     {
         NSInteger deleteIndex = number.integerValue;
-
+        
         //remember the selected cell indices we need to delete
         [self.selectedCells removeObject:number];
         
@@ -1108,7 +1124,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
         //halt animation
         CGPoint scrollPoint = self.contentOffset;
         [self setContentOffset:scrollPoint animated:NO];
-
+        
         //stop 'layoutCells' from interacting with this (Since 'layoutSubviews' gets triggered by iOS everytime we add/remove a cell)
         self.pauseCellLayout = YES;
         
@@ -1185,14 +1201,14 @@ views over the top of the scrollview, and cross-fade animates between the two fo
                 CGRect frame = cell.frame;
                 frame.size = [self sizeOfCellAtIndex:index];
                 cell.frame = frame;
-  
+                
                 [cell setSelected:NO animated:NO];
                 
                 //change the origin
                 CGPoint newOrigin = [self originOfCellAtIndex:index];
                 if ((NSInteger)cell.frame.origin.y != (NSInteger)newOrigin.y)
                     [self bringSubviewToFront:cell];
-
+                
                 //if this cell is truly moving a sizable distance, add a delay to the animation
                 //(Otherwise it'll look like cells down the page take longer to move than others)
                 if ((NSInteger)cell.frame.origin.y != (NSInteger)newOrigin.y && (NSInteger)cell.frame.origin.x != (NSInteger)newOrigin.x)
@@ -1240,7 +1256,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
                     
                     //reenable user interaction
                     [self setUserInteractionEnabled:YES];
-                
+                    
                     self.pauseCrossFadeAnimation = YES;
                     [UIView animateWithDuration:0.30f animations:^{
                         self.contentSize = [self contentSizeOfScrollView];
@@ -1269,7 +1285,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
         [self enumerateCellDictionary:self.visibleCells withBlock:^(NSInteger index, TOGridViewCell *cell) {
             cell.frame = (CGRect){[self originOfCellAtIndex:index], [self sizeOfCellAtIndex:index]};
         }];
-    
+        
         //reset the size of the content view to account for the new cells
         self.contentSize = [self contentSizeOfScrollView];
         
@@ -1547,7 +1563,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
             self.dragScrollTimer = nil;
         }
     }
-        
+    
     [super touchesMoved:touches withEvent:event];
 }
 
@@ -1603,7 +1619,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
                 [self.selectedCells removeObject:cellIndexNumber];
                 
                 if (_gridViewFlags.delegateDidHighlightCell)
-                    [self.delegate gridView:self didUnhighlightCellAtIndex:cellIndexNumber.integerValue]; 
+                    [self.delegate gridView:self didUnhighlightCellAtIndex:cellIndexNumber.integerValue];
             }
         }
         else //if there IS a cell being dragged about, re-insert it back into the view layout
@@ -1632,7 +1648,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
             
             frame = self.draggingCell.frame;
             frame.size = [self sizeOfCellAtIndex:newIndex];
-
+            
             self.draggingCell.frame = frame;
             self.draggingCell.transform = transform;
             
@@ -1840,7 +1856,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
 - (void)setFrame:(CGRect)frame
 {
     [super setFrame:frame];
-
+    
     //If we were in the middle of dragging a cell, kill it
     if (self.editing)
         [self cancelDraggingCell];
@@ -1875,7 +1891,7 @@ views over the top of the scrollview, and cross-fade animates between the two fo
             [cell setSelected:NO animated:NO];
             [cell setEditing:NO animated:animated];
         }
-
+        
         //reset the list of selected cells
         self.selectedCells = nil;
         self.selectedCells = [NSMutableArray array];
