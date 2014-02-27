@@ -1693,8 +1693,10 @@ views over the top of the scrollview, and cross-fade animates between the two fo
     self.draggingCell = nil;
     
     self.draggingOverIndex = -1;
+    self.draggingCellIndex = -1;
     
     [self setScrollEnabled:YES];
+    self.pauseCellLayout = NO;
 }
 
 - (void)setCell:(TOGridViewCell *)cell atIndex:(NSInteger)index dragging:(BOOL)dragging animated:(BOOL)animated
