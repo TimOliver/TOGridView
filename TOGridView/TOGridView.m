@@ -26,6 +26,9 @@
 
 #define LONG_PRESS_TIME 0.4f
 
+#define TOP_OFFSET      -self.contentInset.top
+#define BOTTOM_OFFSET   (self.contentSize.height+(self.contentInset.bottom) - CGRectGetHeight(self.bounds))
+
 @interface TOGridView () {
     
     /* Store what protocol methods the delegate/dataSource implement to help reduce overhead involved with checking that at runtime */
@@ -95,7 +98,6 @@
 @property (nonatomic, assign) __block BOOL pauseCrossFadeAnimation;
 
 /* Properties of the scroll view used to track the current dragging state of a cell */
-@property (nonatomic, strong) NSTimer       *dragScrollTimer;       /* Timer that fires at 60FPS to dynamically animate the scrollView */
 @property (nonatomic, assign) CGFloat       dragScrollBias;         /* The amount the offset of the scrollview is incremented on each call of the timer*/
 @property (nonatomic, assign) NSInteger     draggingOverIndex;      /* While dragging a cell around, this keeps track of which other cell's area it's currently hovering over */
 
@@ -104,6 +106,9 @@
 @property (nonatomic, assign) NSInteger     draggingCellIndex;      /* The index of the cell being dragged */
 @property (nonatomic, assign) CGPoint       draggingCellPanPoint;   /* The co-ords of the user's fingers from the last touch event to update the drag cell while it's animating */
 @property (nonatomic, assign) CGSize        draggingCellOffset;     /* The distance between the cell's origin and the user's touch position */
+
+/* Timer link added to the main run-loop so we can animate the view scrolling */
+@property (nonatomic, strong) CADisplayLink *dragScrollTimerLink;
 
 - (void)enumerateCellDictionary:(NSDictionary *)cellDictionary withBlock:(void (^)(NSInteger index, TOGridViewCell *cell))block;
 - (void)updateVisibleCellKeysWithDictionary:(NSDictionary *)updatedCells;
@@ -122,6 +127,8 @@
 - (NSInteger)indexOfCellAtPoint:(CGPoint)point;
 - (void)updateCellsLayoutWithDraggedCellAtPoint:(CGPoint)dragPanPoint;
 - (void)cancelDraggingCell;
+- (void)startAnimatingScrollViewDragging;
+- (void)stopAnimatingScrollViewDragging;
 
 @end
 
@@ -153,7 +160,7 @@
         
         // Default settings for when dragging cells near the boundaries of the grid view
         self.dragScrollBoundaryDistance = 80;
-        self.dragScrollMaxVelocity      = 25;
+        self.dragScrollMaxVelocity      = 20;
         
         // Default state handling for touch events
         self.draggingOverIndex          = -1;
@@ -561,9 +568,9 @@
         {
             CGPoint contentOffset = self.bounds.origin;
             
-            if (contentOffset.y < -self.contentInset.top) //reset back to 0 if it's rubber-banding at the top
+            if (contentOffset.y < TOP_OFFSET) //reset back to 0 if it's rubber-banding at the top
                 [self setContentOffset:(CGPoint){0.0f, -self.contentInset.top} animated:NO];
-            else if (contentOffset.y > self.contentSize.height - CGRectGetHeight(self.bounds)) // reset if rubber-banding at the bottom
+            else if (contentOffset.y > BOTTOM_OFFSET) // reset if rubber-banding at the bottom
                 [self setContentOffset:CGPointMake(0, self.contentSize.height - CGRectGetHeight(self.bounds)) animated:NO];
             else //just halt it where-ever it is right now.
                 [self setContentOffset:contentOffset animated:NO];
@@ -733,7 +740,7 @@
         __block CGRect frame = CGRectZero;
         
         //if the view isn't scrolling, we can use the presentation layer to pause views mid-animation
-        if (self.dragScrollTimer)
+        if (self.dragScrollTimerLink)
             frame = (CGRect){[self originOfCellAtIndex:index], [self sizeOfCellAtIndex:index]};
         else
             frame = [cell.layer.presentationLayer frame];
@@ -1348,8 +1355,8 @@
 {
     CGPoint offset = self.contentOffset;
     offset.y += self.dragScrollBias; //Add the calculated scroll bias to the current scroll offset
-    offset.y = MAX(0, offset.y); //Clamp the value so we can't accidentally scroll past the end of the content
-    offset.y = MIN(self.contentSize.height - CGRectGetHeight(self.bounds), offset.y);
+    offset.y = MAX(TOP_OFFSET, offset.y); //Clamp the value so we can't accidentally scroll past the end of the content
+    offset.y = MIN(BOTTOM_OFFSET, offset.y);
     self.contentOffset = offset;
     
     //layout cells now that the scroll offset has changed
@@ -1368,6 +1375,10 @@
         center.y = self.draggingCellPanPoint.y + self.contentOffset.y;
         self.draggingCell.center = center;
     }
+    
+    //if we hit the boundary, cancel the animation timer
+    if (self.contentOffset.y <= TOP_OFFSET || self.contentOffset.y >= BOTTOM_OFFSET)
+        [self stopAnimatingScrollViewDragging];
 }
 
 - (NSArray *)indicesOfSelectedCells
@@ -1542,26 +1553,36 @@
         self.draggingCellPanPoint = panPoint;
         
         //Determine if the touch location is within the scroll boundaries at either the top or bottom
-        if ((panPoint.y < self.dragScrollBoundaryDistance && self.contentOffset.y > 0.0f) ||
-            (panPoint.y > CGRectGetHeight(self.bounds) - self.dragScrollBoundaryDistance && (self.contentOffset.y < self.contentSize.height - CGRectGetHeight(self.bounds))))
-        {
-            //Kickstart a timer that'll fire at 60FPS to dynamically animate the scrollview
-            if (self.dragScrollTimer == nil)
-                self.dragScrollTimer = [NSTimer scheduledTimerWithTimeInterval:1.0f/60.0f target:self selector:@selector(fireDragTimer:) userInfo:nil repeats:YES];
+        BOOL startAnimating = NO;
+
+        //If we're scrolling at the top
+        if (self.contentOffset.y > TOP_OFFSET && panPoint.y < self.dragScrollBoundaryDistance + self.contentInset.top) {
+            NSInteger minPoint = self.dragScrollBoundaryDistance;
+            NSInteger adjustedPanPoint = panPoint.y - self.contentInset.top;
+            adjustedPanPoint = MAX(adjustedPanPoint, 0);
             
-            //If we're scrolling at the top
-            if (panPoint.y < self.dragScrollBoundaryDistance)
-                self.dragScrollBias = -(self.dragScrollMaxVelocity - ((self.dragScrollMaxVelocity/self.dragScrollBoundaryDistance) * panPoint.y));
-            else if (panPoint.y > CGRectGetHeight(self.bounds) - self.dragScrollBoundaryDistance) //we're scrolling at the bottom
-                self.dragScrollBias = ((panPoint.y - (CGRectGetHeight(self.bounds) - self.dragScrollBoundaryDistance)) / self.dragScrollBoundaryDistance) * self.dragScrollMaxVelocity;
+            self.dragScrollBias = -(self.dragScrollMaxVelocity * (1.0f - ((CGFloat)adjustedPanPoint / (CGFloat)minPoint)));
+            
+            startAnimating = YES;
         }
         
-        //cancel the scrolling if we tap up, or move our fingers into the middle of the screen
-        if ((panPoint.y>self.dragScrollBoundaryDistance && panPoint.y<CGRectGetHeight(self.bounds)-self.dragScrollBoundaryDistance))
-        {
-            [self.dragScrollTimer invalidate];
-            self.dragScrollTimer = nil;
+        //we're scrolling at the bottom
+        if (self.contentOffset.y < BOTTOM_OFFSET && panPoint.y > (CGRectGetHeight(self.bounds) - self.contentInset.bottom) - self.dragScrollBoundaryDistance) {
+            NSInteger maxPoint = CGRectGetHeight(self.bounds);
+            NSInteger minPoint = maxPoint - self.dragScrollBoundaryDistance;
+            NSInteger adjustedPanPoint = panPoint.y + self.contentInset.bottom;
+            adjustedPanPoint = MIN(adjustedPanPoint, maxPoint);
+            
+            self.dragScrollBias = (self.dragScrollMaxVelocity * (((CGFloat)(adjustedPanPoint-minPoint) / (CGFloat)(maxPoint-minPoint))));
+            
+            startAnimating = YES;
         }
+        
+        //Kickstart a timer that'll fire at 60FPS to dynamically animate the scrollview
+        if (startAnimating)
+            [self startAnimatingScrollViewDragging];
+        else //cancel the scrolling if we tap up, or move our fingers into the middle of the screen
+            [self stopAnimatingScrollViewDragging];
     }
     
     [super touchesMoved:touches withEvent:event];
@@ -1576,7 +1597,7 @@
     UITouch *touch = [touches anyObject];
     
     //if we were animating the scroll view at the time, cancel it
-    [self.dragScrollTimer invalidate];
+    [self stopAnimatingScrollViewDragging];
     
     //The cell under our finger
     TOGridViewCell *cell = [self cellInTouch:touch];
@@ -1701,18 +1722,28 @@
 
 - (void)cancelDraggingCell
 {
+    //if we're not currently dragging a cell, nothing to do here
     if (self.draggingCell == nil)
         return;
     
+    //reset the cell's properties
     self.draggingCell.layer.anchorPoint = CGPointMake(0.5f, 0.5f);
     [self setCell:self.draggingCell atIndex:self.draggingCellIndex dragging:NO animated:NO];
     self.draggingCell = nil;
     
+    //invalidate the index info
     self.draggingOverIndex = -1;
     self.draggingCellIndex = -1;
     
+    //restore the scroll view
     [self setScrollEnabled:YES];
     self.pauseCellLayout = NO;
+    
+    //kill the scrolling timer
+    [self stopAnimatingScrollViewDragging];
+     
+    //reload all of the cells to put them back in order
+    [self reloadGrid];
 }
 
 - (void)setCell:(TOGridViewCell *)cell atIndex:(NSInteger)index dragging:(BOOL)dragging animated:(BOOL)animated
@@ -1772,6 +1803,24 @@
             cell.frame = frame;
         }
     }
+}
+
+- (void)startAnimatingScrollViewDragging
+{
+    if (self.dragScrollTimerLink)
+        return;
+    
+    self.dragScrollTimerLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(fireDragTimer:)];
+    [self.dragScrollTimerLink addToRunLoop:[NSRunLoop mainRunLoop] forMode:NSDefaultRunLoopMode];
+}
+
+- (void)stopAnimatingScrollViewDragging
+{
+    if (self.dragScrollTimerLink == nil)
+        return;
+    
+    [self.dragScrollTimerLink removeFromRunLoop:[NSRunLoop mainRunLoop] forMode:NSDefaultRunLoopMode];
+    self.dragScrollTimerLink = nil;
 }
 
 #pragma mark -
@@ -1877,8 +1926,7 @@
     /* If we ended editing, make sure to kill the scroll timer. */
     if (self.editing)
     {
-        [self.dragScrollTimer invalidate];
-        self.dragScrollTimer = nil;
+        [self stopAnimatingScrollViewDragging];
         
         //deselect and exit edit mode for all visible cells
         [self enumerateCellDictionary:self.visibleCells withBlock:^(NSInteger index, TOGridViewCell *cell) {

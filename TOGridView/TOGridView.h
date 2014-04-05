@@ -85,7 +85,7 @@ typedef enum {
 @property (nonatomic, assign)    BOOL                         editing;                      /* Whether the grid view is in an editing state now. */
 @property (nonatomic, assign)    BOOL                         nonRetinaRenderContexts;      /* If the grid view has a lot of complex cells, setting this can help boost animation performance at a visual expense on Retina devices. */
 @property (nonatomic, assign)    NSInteger                    dragScrollBoundaryDistance;   /* The distance, in points, from the top of the view downwards that will trigger auto-scrolling when dragging a cell (Same for the bottom). Default is 60 points. */
-@property (nonatomic, assign)    CGFloat                      dragScrollMaxVelocity;        /* The maximum velocity the view will scroll at when dragging (Ramped up from 0 the closer the finger is to the view boundary). Default is 15 points. */                /* Main array of visible cells */
+@property (nonatomic, assign)    CGFloat                      dragScrollMaxVelocity;        /* The maximum velocity the view will scroll at when dragging (Ramped up from 0 the closer the finger is to the view boundary). Default is 20 points. */                /* Main array of visible cells */
 @property (nonatomic, readonly)  CGSize                       cellSize;                     /* The unmodified sizes of each cell. */
 @property (nonatomic, readonly)  NSArray                      *visibleCellViews;            /* An array of all visible cells inside the grid view */
 @property (nonatomic, readonly)  NSInteger                    numberOfCells;                /* Number of cells in the grid view */
