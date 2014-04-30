@@ -1,4 +1,4 @@
-//
+    //
 //  TOGridView.m
 //
 //  Copyright 2014 Timothy Oliver. All rights reserved.
@@ -94,9 +94,6 @@
 /* Temporarily halt laying out cells if we need to do something manually that causes iOS to call 'layoutSubViews' */
 @property (nonatomic, assign) __block BOOL pauseCellLayout;
 
-/* If we need to perform an animation that may trigger the cross-fade animation, temporarily disable it here. */
-@property (nonatomic, assign) __block BOOL pauseCrossFadeAnimation;
-
 /* Properties of the scroll view used to track the current dragging state of a cell */
 @property (nonatomic, assign) CGFloat       dragScrollBias;         /* The amount the offset of the scrollview is incremented on each call of the timer*/
 @property (nonatomic, assign) NSInteger     draggingOverIndex;      /* While dragging a cell around, this keeps track of which other cell's area it's currently hovering over */
@@ -154,9 +151,6 @@
         // The sets to handle the recycling and repurposing/reuse of cells
         self.recycledCells              = [NSMutableArray array];
         self.visibleCells               = [NSMutableDictionary dictionary];
-        
-        // The default class used to instantiate new cells
-        self.cellClass                  = [TOGridViewCell class];
         
         // Default settings for when dragging cells near the boundaries of the grid view
         self.dragScrollBoundaryDistance = 80;
@@ -265,6 +259,8 @@
     
     if (self.numberOfCells)
         size.height += (NSInteger)(ceil((CGFloat)self.numberOfCells / (CGFloat)self.numberOfCellsPerRow) * self.rowHeight);
+    
+    size.height = MAX(size.height, CGRectGetHeight(self.bounds));
     
     return size;
 }
@@ -493,7 +489,9 @@
         
         //Get the cell with its content setup from the dataSource
         cell = [self.dataSource gridView:self cellForIndex:index + indexOffset];
-        
+        if (cell == nil)
+            [NSException raise:NSInternalInconsistencyException format:@"The datasource may not return a nil cell object"];
+
         cell.hidden = NO;
         [cell setHighlighted:NO animated:NO];
         
@@ -552,7 +550,7 @@
     /* Apply the crossfade effect if this method is being called while there is a pending 'bounds' animation present. */
     /* Capture the 'before' state to UIImageView before we reposition all of the cells */
     CABasicAnimation *boundsAnimation = (CABasicAnimation *)[self.layer animationForKey:@"bounds"];
-    if (boundsAnimation && self.pauseCrossFadeAnimation == NO)
+    if (self.window != nil && boundsAnimation)
     {
         //if a cell is currently being dragged, cancel it
         if (self.draggingCell)
@@ -560,8 +558,10 @@
         
         //make a mutable copy of the bounds animation,
         //as we will need to change the 'from' state in a little while
-        boundsAnimation = [boundsAnimation mutableCopy];
-        [self.layer removeAnimationForKey:@"bounds"];
+        if (self.crossfadeCellsOnRotation) {
+            boundsAnimation = [boundsAnimation mutableCopy];
+            [self.layer removeAnimationForKey:@"bounds"];
+        }
         
         //halt the scroll view if it's currently moving
         if (self.isDecelerating || self.isDragging)
@@ -580,7 +580,7 @@
         //The original bounds are still available as the 'before' value in the layer animation object
         CGRect beforeRect = [boundsAnimation.fromValue CGRectValue];
         
-        if (self.beforeSnapshotView == nil)
+        if (self.beforeSnapshotView == nil && self.crossfadeCellsOnRotation)
             self.beforeSnapshotView = [self snapshotOfGridViewInRect:beforeRect];
         
         //Save the current visible cells before we apply the rotation so we can re-align it afterwards
@@ -590,6 +590,14 @@
         //poll the delegate again to see if anything needs changing since the bounds have changed
         //(Also, by this point, [UIViewController interfaceOrientation] has updated to the new orientation too)
         [self resetCellMetrics];
+        
+        //if we're not crossfading, force all of the visible cells to re-align
+        if (self.crossfadeCellsOnRotation == NO) {
+            //arrange the cells to their new configuration
+            [self.visibleCells enumerateKeysAndObjectsUsingBlock:^(NSNumber *index, TOGridViewCell *cell, BOOL *stop) {
+                cell.frame = (CGRect){[self originOfCellAtIndex:index.integerValue], [self sizeOfCellAtIndex:index.integerValue]};
+            }];
+        }
         
         //manually set contentOffset's value based off bounds.
         //Not sure why, but if we don't do this, periodically, contentOffset resets to [0,0] (possibly as a result of the frame changing) and borks the animation :S
@@ -609,7 +617,7 @@
     if (self.pauseCellLayout == NO)
         [self layoutCells];
     
-    if (boundsAnimation && self.pauseCrossFadeAnimation == NO)
+    if (self.window != nil && boundsAnimation && self.crossfadeCellsOnRotation)
     {
         //arrange the cells to their new configuration
         [self.visibleCells enumerateKeysAndObjectsUsingBlock:^(NSNumber *index, TOGridViewCell *cell, BOOL *stop) {
@@ -632,10 +640,10 @@
         boundsAnimation.removedOnCompletion = YES;
         [self.layer addAnimation:boundsAnimation forKey:@"bounds"];
         
-        self.beforeSnapshotView.frame = (CGRect){self.frame.origin, self.beforeSnapshotView.frame.size};
+        self.beforeSnapshotView.frame = (CGRect){(CGPoint){0.0f, self.contentOffset.y}, self.beforeSnapshotView.frame.size};
         self.beforeSnapshotView.alpha = 0.0f;
         [self.beforeSnapshotView.layer removeAllAnimations];
-        [self.superview insertSubview:self.beforeSnapshotView aboveSubview:self];
+        [self insertSubview:self.beforeSnapshotView aboveSubview:self];
         
         //Add the 'before' snap shot and animate it fading out
         CABasicAnimation *beforeFadeAnimation = [CABasicAnimation animationWithKeyPath:@"opacity"];
@@ -834,9 +842,11 @@
     }
     
     //If there are no cells available, create a new one and set it up
-    cell = [[self.cellClass alloc] initWithFrame:CGRectMake(0, 0, self.cellSize.width, self.cellSize.height)];
-    cell.frame = CGRectMake(0, 0, self.cellSize.width, self.cellSize.height);
-    [cell setHighlighted:NO animated:NO];
+    if (self.cellClass) {
+        cell = [[self.cellClass alloc] initWithFrame:CGRectMake(0, 0, self.cellSize.width, self.cellSize.height)];
+        cell.frame = CGRectMake(0, 0, self.cellSize.width, self.cellSize.height);
+        [cell setHighlighted:NO animated:NO];
+    }
     
     return cell;
 }
@@ -1197,81 +1207,91 @@
             //sort the visible cells into their respective order so we can sort it in the right order
             NSArray *sortedVisibleCellIndices = [[self.visibleCells allKeys] sortedArrayUsingSelector:@selector(compare:)];
             
-            //reset the size of all of the remaining cells before they move
-            NSInteger i = 0; //i is used to add a cascading delay in front of cells
-            for (NSNumber *key in sortedVisibleCellIndices)
-            {
-                NSInteger index = key.integerValue;
-                TOGridViewCell *cell = self.visibleCells[key];
+            void (^completionBlock)(void) = ^{
+                //re-enable 'layoutCells'
+                self.pauseCellLayout = NO;
                 
-                //change the size of the cell as necessary
-                CGRect frame = cell.frame;
-                frame.size = [self sizeOfCellAtIndex:index];
-                cell.frame = frame;
+                //reset all of the cells
+                [self layoutCells];
                 
-                [cell setSelected:NO animated:NO];
-                
-                //change the origin
-                CGPoint newOrigin = [self originOfCellAtIndex:index];
-                if ((NSInteger)cell.frame.origin.y != (NSInteger)newOrigin.y)
-                    [self bringSubviewToFront:cell];
-                
-                //if this cell is truly moving a sizable distance, add a delay to the animation
-                //(Otherwise it'll look like cells down the page take longer to move than others)
-                if ((NSInteger)cell.frame.origin.y != (NSInteger)newOrigin.y && (NSInteger)cell.frame.origin.x != (NSInteger)newOrigin.x)
-                    i++;
-                
-                [UIView animateWithDuration:0.30f delay:i*0.03f options:UIViewAnimationOptionCurveEaseInOut animations:^{
-                    CGRect frame = cell.frame;
-                    frame.origin = newOrigin;
-                    
-                    //cap how far it can move up so it doesn't just shoot off so quickly that it becomes invisible
-                    if (CGRectGetMaxY(cell.frame) - (newOrigin.y+CGRectGetHeight(self.bounds)) > CGRectGetHeight(self.bounds))
-                        frame.origin.y = CGRectGetMinY(cell.frame) - (CGRectGetHeight(self.bounds)+CGRectGetHeight(cell.frame));
-                    
-                    cell.frame = frame;
-                } completion:^(BOOL finished) {
-                    if (index != finalCellIndex)
-                        return;
-                    
-                    //re-enable 'layoutCells'
-                    self.pauseCellLayout = NO;
-                    
-                    //reset all of the cells
-                    [self layoutCells];
-                    
-                    //clean out the excess recycled cells
-                    NSInteger maxNumberOfCellsInScreen = ceil(CGRectGetHeight(self.bounds) / self.rowHeight) * self.numberOfCellsPerRow;
-                    NSInteger numberOfCells = [self.recycledCells count] + [self.visibleCells count];
-                    if (numberOfCells > maxNumberOfCellsInScreen && [self.visibleCells count] <= maxNumberOfCellsInScreen)
+                //clean out the excess recycled cells
+                NSInteger maxNumberOfCellsInScreen = ceil(CGRectGetHeight(self.bounds) / self.rowHeight) * self.numberOfCellsPerRow;
+                NSInteger numberOfCells = [self.recycledCells count] + [self.visibleCells count];
+                if (numberOfCells > maxNumberOfCellsInScreen && [self.visibleCells count] <= maxNumberOfCellsInScreen)
+                {
+                    while (numberOfCells > maxNumberOfCellsInScreen)
                     {
-                        while (numberOfCells > maxNumberOfCellsInScreen)
-                        {
-                            if ([self.recycledCells count] == 0)
-                                break;
-                            
-                            TOGridViewCell *cell = self.recycledCells[0];
-                            if (cell == nil)
-                                continue;
-                            
-                            [self.recycledCells removeObject:cell];
-                            cell = nil;
-                            
-                            numberOfCells--;
-                        }
+                        if ([self.recycledCells count] == 0)
+                            break;
+                        
+                        TOGridViewCell *cell = self.recycledCells[0];
+                        if (cell == nil)
+                            continue;
+                        
+                        [self.recycledCells removeObject:cell];
+                        cell = nil;
+                        
+                        numberOfCells--;
                     }
+                }
+                
+                //reenable user interaction
+                [self setUserInteractionEnabled:YES];
+                
+                [UIView animateWithDuration:0.30f animations:^{
+                    self.contentSize = [self contentSizeOfScrollView];
+                    self.contentOffset = ({
+                        CGPoint contentOffset = self.contentOffset;
+                        contentOffset.y = MAX(0.0f, self.contentSize.height - CGRectGetHeight(self.bounds));
+                        contentOffset;
+                    });
+                } completion:nil];
+            };
+            
+            if (sortedVisibleCellIndices.count) {
+                //reset the size of all of the remaining cells before they move
+                NSInteger i = 0; //i is used to add a cascading delay in front of cells
+                for (NSNumber *key in sortedVisibleCellIndices)
+                {
+                    NSInteger index = key.integerValue;
+                    TOGridViewCell *cell = self.visibleCells[key];
                     
-                    //reenable user interaction
-                    [self setUserInteractionEnabled:YES];
+                    //change the size of the cell as necessary
+                    CGRect frame = cell.frame;
+                    frame.size = [self sizeOfCellAtIndex:index];
+                    cell.frame = frame;
                     
-                    self.pauseCrossFadeAnimation = YES;
-                    [UIView animateWithDuration:0.30f animations:^{
-                        self.contentSize = [self contentSizeOfScrollView];
+                    [cell setSelected:NO animated:NO];
+                    
+                    //change the origin
+                    CGPoint newOrigin = [self originOfCellAtIndex:index];
+                    if ((NSInteger)cell.frame.origin.y != (NSInteger)newOrigin.y)
+                        [self bringSubviewToFront:cell];
+                    
+                    //if this cell is truly moving a sizable distance, add a delay to the animation
+                    //(Otherwise it'll look like cells down the page take longer to move than others)
+                    if ((NSInteger)cell.frame.origin.y != (NSInteger)newOrigin.y && (NSInteger)cell.frame.origin.x != (NSInteger)newOrigin.x)
+                        i++;
+                    
+                    [UIView animateWithDuration:0.30f delay:i*0.03f options:UIViewAnimationOptionCurveEaseInOut animations:^{
+                        CGRect frame = cell.frame;
+                        frame.origin = newOrigin;
+                        
+                        //cap how far it can move up so it doesn't just shoot off so quickly that it becomes invisible
+                        if (CGRectGetMaxY(cell.frame) - (newOrigin.y+CGRectGetHeight(self.bounds)) > CGRectGetHeight(self.bounds))
+                            frame.origin.y = CGRectGetMinY(cell.frame) - (CGRectGetHeight(self.bounds)+CGRectGetHeight(cell.frame));
+                        
+                        cell.frame = frame;
                     } completion:^(BOOL finished) {
-                        self.pauseCrossFadeAnimation = NO;
+                        if (index != finalCellIndex)
+                            return;
+                        
+                        completionBlock();
                     }];
-                    
-                }];
+                }
+            }
+            else {
+                completionBlock();
             }
         }];
     }
@@ -1386,12 +1406,12 @@
     return [NSArray arrayWithArray:self.selectedCells];
 }
 
-- (BOOL)selectCellAtIndex:(NSInteger)index
+- (BOOL)selectCellAtIndex:(NSInteger)index animated:(BOOL)animated
 {
-    return [self selectCellsAtIndices:@[@(index)]];
+    return [self selectCellsAtIndices:@[@(index)] animated:animated];
 }
 
-- (BOOL)selectCellsAtIndices:(NSArray *)indices
+- (BOOL)selectCellsAtIndices:(NSArray *)indices animated:(BOOL)animated
 {
     for (NSNumber *index in indices)
     {
@@ -1403,7 +1423,7 @@
         //if the cell is visible on-screen, set its state to selected
         TOGridViewCell *cell = [self cellForIndex:cellIndex];
         if (cell)
-            [cell setSelected:YES animated:NO];
+            [cell setSelected:YES animated:animated];
     }
     
     return YES;
@@ -1493,8 +1513,6 @@
     if (self.editing == NO)
     {
         [self.delegate gridView:self didLongTapCellAtIndex:index];
-        
-        //let 'touchesEnded' know we already performed the event for this one
         self.cancelTouches = YES;
     }
     else
@@ -1759,7 +1777,6 @@
     //Set the cell's raserization scale for the upcoming bitmap cache
     cell.layer.rasterizationScale = [[UIScreen mainScreen] scale];
     
-    
     if (animated)
     {
         //Perform the animation
@@ -1923,6 +1940,9 @@
 {
     _editing = editing;
     
+    //flush the selected cells
+    self.selectedCells = nil;
+    
     /* If we ended editing, make sure to kill the scroll timer. */
     if (self.editing)
     {
@@ -1940,8 +1960,7 @@
             [cell setEditing:NO animated:animated];
         }
         
-        //reset the list of selected cells
-        self.selectedCells = nil;
+        //re-init the list of selected cells
         self.selectedCells = [NSMutableArray array];
     }
     else

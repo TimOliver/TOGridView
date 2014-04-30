@@ -142,8 +142,8 @@ typedef enum {
 - (NSArray *)indicesOfSelectedCells;
 
 /* Set cells to their selected state in edit mode */
-- (BOOL)selectCellAtIndex:(NSInteger)index;
-- (BOOL)selectCellsAtIndices:(NSArray *)indices;
+- (BOOL)selectCellAtIndex:(NSInteger)index animated:(BOOL)animated;
+- (BOOL)selectCellsAtIndices:(NSArray *)indices animated:(BOOL)animated;
 
 /* Deselect cells when in edit mode */
 - (BOOL)deselectCellAtIndex:(NSInteger)index;
