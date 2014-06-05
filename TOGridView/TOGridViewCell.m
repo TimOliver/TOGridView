@@ -27,15 +27,7 @@
 
 #define ANIMATION_TIME 0.7f
 
-@interface TOGridViewCell()
-
-{
-    /* State tracking that would change the appearence of the cell. */
-    BOOL _isEditing;        /* Whether the cell is currently in an editing state */
-    BOOL _isHighlighted;    /* Cell is currently 'highlighted' (ie, when a user taps it outside of edit mode) */
-    BOOL _isSelected;       /* Cell is 'selected' (eg, when the user is selecting multiple cells for a batch operation) */
-    BOOL _isDragging;       /* Cell is currently being dragged around the screen by the user */
-}
+@interface TOGridViewCell ()
 
 /* The view that all of the dynamic content of this cell is added to. */
 @property (nonatomic,strong) UIView *contentView;
@@ -46,8 +38,7 @@
 
 - (id)initWithFrame:(CGRect)frame
 {    
-    if (self = [super initWithFrame:frame])
-    {
+    if (self = [super initWithFrame:frame]) {
         //Set up default state for this cell view
         self.backgroundColor = [UIColor whiteColor];
         self.autoresizesSubviews = YES;
@@ -60,9 +51,14 @@
 
 #pragma mark -
 #pragma mark Cell Selection Style Handlers
+- (void)setEditing:(BOOL)editing
+{
+    [self setEditing:editing animated:NO];
+}
+
 - (void)setEditing:(BOOL)editing animated:(BOOL)animated
 {
-    [self setEditing:animated];
+    _editing = editing;
     
     //Mainly for use if the subclass wants to do any animation transitions upon entering/exiting edit mode
 }
@@ -70,30 +66,27 @@
 /* Called when a cell is tapped and/or subsequently released to add a highlight effect. */
 - (void)setHighlighted:(BOOL)highlighted animated:(BOOL)animated
 {
-    if (highlighted == _isHighlighted)
+    if (highlighted == _highlighted)
         return;
     
-    _isHighlighted = highlighted;
+    _highlighted = highlighted;
     
     //skip this if we haven't got a highlighted background view supplied
     if (self.highlightedBackgroundView == nil)
         return;
     
-    if (animated)
-    {
+    if (animated) {
         //cancel any animations in progress
         [self.highlightedBackgroundView.layer removeAllAnimations];
         
         CGFloat alpha;
         self.highlightedBackgroundView.hidden = NO;
         
-        if (highlighted)
-        {
+        if (highlighted) {
             self.highlightedBackgroundView.alpha = 0.0f;
             alpha = 1.0f;
         }
-        else
-        {
+        else {
             self.highlightedBackgroundView.alpha = 1.0f;
             alpha = 0.0f;
             
@@ -101,16 +94,17 @@
         }
         
         //set the content view to the oppsoite state so we can transition to it
-        [self setHighlighted:(!_isHighlighted)];
+        for (id subview in self.subviews) {
+            if ([subview respondsToSelector:@selector(setHighlighted:)])
+                [subview setHighlighted:!_highlighted];
+        }
         
         /* Animate the highlighted background to crossfade */
         [UIView animateWithDuration:ANIMATION_TIME animations:^{
             self.highlightedBackgroundView.alpha = alpha;
         }
-        completion:^(BOOL finished)
-        {
-            if (_isHighlighted == NO)
-            {
+        completion:^(BOOL finished) {
+            if (_highlighted == NO) {
                 self.highlightedBackgroundView.hidden = YES;
                 [self setNeedsTransparentContent:YES];
             }
@@ -118,25 +112,28 @@
 
         //set the content view to unhighlighted about halfway through the animation
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (ANIMATION_TIME*0.5f) * NSEC_PER_SEC), dispatch_get_current_queue(), ^{
-            [self setHighlighted:_isHighlighted];
+            for (id subview in self.subviews) {
+                if ([subview respondsToSelector:@selector(setHighlighted:)])
+                    [subview setHighlighted:_highlighted];
+            }
         });
     }
-    else
-    {
+    else {
         self.highlightedBackgroundView.alpha = 1.0f;
         
-        if (_isHighlighted)
-        {
+        if (_highlighted) {
             self.highlightedBackgroundView.hidden = NO;
             [self setNeedsTransparentContent:YES];
         }
-        else
-        {
+        else {
             self.highlightedBackgroundView.hidden = YES;
             [self setNeedsTransparentContent:NO];
         }
         
-        [self setHighlighted:_isHighlighted];
+        for (id subview in self.subviews) {
+            if ([subview respondsToSelector:@selector(setHighlighted:)])
+                [subview setHighlighted:_highlighted];
+        }
     }
 }
 
@@ -147,26 +144,23 @@
 
 - (void)setSelected:(BOOL)selected animated:(BOOL)animated
 {
-    _isSelected = selected;
+    _selected = selected;
     
     if (_selectedBackgroundView == nil)
         return;
     
-    if (animated)
-    {
+    if (animated) {
         //cancel any animations in progress
         [self.selectedBackgroundView.layer removeAllAnimations];
         
         CGFloat alpha;
         self.selectedBackgroundView.hidden = NO;
         
-        if (_isSelected)
-        {
+        if (_selected) {
             self.selectedBackgroundView.alpha = 0.0f;
             alpha = 1.0f;
         }
-        else
-        {
+        else {
             self.selectedBackgroundView.alpha = 1.0f;
             alpha = 0.0f;
             
@@ -174,7 +168,10 @@
         }
         
         //set the content view to the oppsoite state so we can transition to it
-        [self setSelected:(!_isSelected)];
+        for (id subview in self.subviews) {
+            if ([subview respondsToSelector:@selector(setSelected:)])
+                [subview setSelected:!_selected];
+        }
         
         /* Animate the highlighted background to crossfade */
         [UIView animateWithDuration:ANIMATION_TIME animations:^{
@@ -182,8 +179,7 @@
         }
         completion:^(BOOL finished)
         {
-             if (_isSelected == NO)
-             {
+             if (_selected == NO) {
                  self.selectedBackgroundView.hidden = YES;
                  [self setNeedsTransparentContent:YES];
              }
@@ -191,25 +187,29 @@
         
         //set the content view to unhighlighted about halfway through the animation
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (ANIMATION_TIME*0.5f) * NSEC_PER_SEC), dispatch_get_current_queue(), ^{
-            [self setSelected:_isSelected];
+            for (id subview in self.subviews) {
+                if ([subview respondsToSelector:@selector(setSelected:)])
+                    [subview setSelected:_selected];
+            }
         });
     }
     else
     {
         self.selectedBackgroundView.alpha = 1.0f;
         
-        if (_isSelected)
-        {
+        if (_selected) {
             self.selectedBackgroundView.hidden = NO;
             [self setNeedsTransparentContent:YES];
         }
-        else
-        {
+        else {
             self.selectedBackgroundView.hidden = YES;
             [self setNeedsTransparentContent:NO];
         }
         
-        [self setSelected:_isSelected];
+        for (id subview in self.subviews) {
+            if ([subview respondsToSelector:@selector(setSelected:)])
+                [subview setSelected:_selected];
+        }
     }
 }
 
@@ -223,8 +223,7 @@
 #pragma mark Accessor Methods
 - (UIView *)contentView
 {
-    if (_contentView == nil)
-    {
+    if (_contentView == nil) {
         _contentView = [[UIView alloc] initWithFrame:self.bounds];
         _contentView.autoresizingMask = UIViewAutoresizingFlexibleHeight | UIViewAutoresizingFlexibleWidth;
         _contentView.backgroundColor = [UIColor clearColor];
@@ -259,7 +258,7 @@
     self.highlightedBackgroundView.frame = self.bounds;
     
     if (self.backgroundView)
-        [self insertSubview:self.highlightedBackgroundView aboveSubview:self.backgroundView ];
+        [self insertSubview:self.highlightedBackgroundView aboveSubview:self.backgroundView];
     else
         [self insertSubview:self.highlightedBackgroundView atIndex:0];
     

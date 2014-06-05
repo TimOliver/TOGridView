@@ -46,6 +46,7 @@
 @property (nonatomic, assign)   BOOL editing;
 @property (nonatomic, assign)   BOOL selected;
 @property (nonatomic, assign)   BOOL highlighted;
+@property (nonatomic, assign)   BOOL draggable;
 
 /* Views for various states that are placed in the background */
 @property (nonatomic, strong)   UIView *backgroundView;

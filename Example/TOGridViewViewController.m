@@ -53,6 +53,7 @@
     self.gridView.autoresizingMask = UIViewAutoresizingFlexibleHeight | UIViewAutoresizingFlexibleWidth;
     self.gridView.delegate      = self;
     self.gridView.dataSource    = self;
+    self.gridView.crossfadeCellsOnRotation = YES;
     [self.view addSubview:self.gridView];
      
     self.gridView.backgroundColor = [UIColor colorWithWhite:0.93f alpha:1.0f];
@@ -84,7 +85,6 @@
     self.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:@"Add" style:UIBarButtonItemStylePlain target:self action:@selector(addButtonTapped:)];
     self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:@"Edit" style:UIBarButtonItemStylePlain target:self action:@selector(editButtonTapped:)];
     self.navigationController.navigationBar.tintColor = [UIColor colorWithWhite:0.1f alpha:1.0f];
-    
 }
 
 - (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)interfaceOrientation
@@ -93,6 +93,11 @@
         return YES;
     
     return YES;
+}
+
+- (UIStatusBarStyle)preferredStatusBarStyle
+{
+    return UIStatusBarStyleDefault;
 }
 
 #pragma mark -
@@ -106,22 +111,19 @@
 {
     if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad)
     {
-        if (UIInterfaceOrientationIsPortrait(self.interfaceOrientation))
+        if ((NSInteger)CGRectGetWidth(self.view.bounds) > 768)
             return CGSizeMake(385, 100);
         else
             return CGSizeMake(342, 100);
     }
     else
     {
-        if (UIInterfaceOrientationIsPortrait(self.interfaceOrientation))
-            return CGSizeMake(322, 70);
+        if ((NSInteger)CGRectGetWidth(self.view.bounds) > 480)
+            return CGSizeMake(285, 70);
+        else if ((NSInteger)CGRectGetWidth(self.view.bounds) == 480)
+            return CGSizeMake(481, 70);
         else
-        {
-            if (UI_USER_INTERFACE_SCREEN_IDIOM() == UIUserInterfaceScreenIdiomPhone4Inch)
-                return CGSizeMake(285, 70);
-            else
-                return CGSizeMake(481, 70);
-        }
+            return CGSizeMake(CGRectGetWidth(self.view.bounds), 70);
     }
 }
 
@@ -129,22 +131,17 @@
 {
     if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad)
     {
-        if (UIInterfaceOrientationIsPortrait( self.interfaceOrientation))
+        if ((NSInteger)CGRectGetWidth(self.view.bounds) > 768)
             return 2;
         else
             return 3;
     }
     else
     {
-        if (UIInterfaceOrientationIsPortrait(self.interfaceOrientation))
-            return 1;
+        if ((NSInteger)CGRectGetWidth(self.view.bounds) > 480)
+            return 2;
         else
-        {
-            if (UI_USER_INTERFACE_SCREEN_IDIOM() == UIUserInterfaceScreenIdiomPhone4Inch)
-                return 2;
-            else
-                return 1;
-        }
+            return 1;
     }
 }
 
