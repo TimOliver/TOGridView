@@ -580,6 +580,8 @@
     if (self.freezeLayoutSubviews)
         return;
     
+    static UIEdgeInsets backgroundEdgeInsets;
+    
     //For cases when our layout code needs to defer laying out cells
     BOOL pauseCellLayout = NO;
     
@@ -611,7 +613,7 @@
         
         //Save the current visible cells before we apply the rotation so we can re-align it afterwards
         NSRange visibleCells = [self rangeOfVisibleCellsInBounds:beforeRect];
-        CGFloat yOffsetFromTopOfRow = beforeRect.origin.y - (self.offsetFromHeader + self.cellPaddingInset.height + (floor(visibleCells.location/self.numberOfCellsPerRow) * self.rowHeight));
+        CGFloat yOffsetFromTopOfRow = (beforeRect.origin.y + self.contentInset.top) - (self.offsetFromHeader + self.cellPaddingInset.height + (floor(visibleCells.location/self.numberOfCellsPerRow) * self.rowHeight));
         
         //Save a copy of the current number of cells per row so we can compare below
         NSInteger numberOfCellsPerRow = self.numberOfCellsPerRow;
@@ -629,6 +631,8 @@
                 self.beforeSnapshotView = [self snapshotOfGridViewInRect:beforeRect];
             }
             self.freezeLayoutSubviews = NO;
+            
+            backgroundEdgeInsets = self.contentInset;
         }
         
         BOOL boundsHeightIncreased = (NSInteger)CGRectGetHeight(beforeRect) - (NSInteger)CGRectGetHeight(self.bounds) < 0;
@@ -648,7 +652,7 @@
             self.contentOffset = CGPointMake(0, self.bounds.origin.y);
         
         //If the header view is completely hidden (ie, only cells), re-orient the scroll view so the same cells are onscreen in the new orientation
-        if (self.contentOffset.y - self.offsetFromHeader > 0.0f && yOffsetFromTopOfRow >= 0.0f && visibleCells.location >= self.numberOfCellsPerRow)
+        if ((self.contentOffset.y+self.contentInset.top) - self.offsetFromHeader > 0.0f && yOffsetFromTopOfRow >= 0.0f && visibleCells.location >= self.numberOfCellsPerRow)
         {
             CGFloat y = self.offsetFromHeader + self.cellPaddingInset.height + (self.rowHeight * floor(visibleCells.location/self.numberOfCellsPerRow)) + yOffsetFromTopOfRow;
             y = MIN(self.contentSize.height - self.bounds.size.height, y);
@@ -679,9 +683,19 @@
         if (fullBoundsAnimation) {
             fullBoundsAnimation = [fullBoundsAnimation mutableCopy];
             [self.layer removeAnimationForKey:@"bounds"];
+            beforeRect = [[boundsAnimation fromValue] CGRectValue];
             
-            beforeRect.origin.y = self.bounds.origin.y; //set the before and after scrolloffsets to the same value
-            fullBoundsAnimation.fromValue = [NSValue valueWithCGRect:beforeRect];
+            /*  This is a dumb optimisation for iComics. When the device rotation animation starts,
+                I set the UINavigationController bar to opaque, which GREATLY increases performance.
+                Unfortunately, when I set the bar to opaque, it re-aligns the grid view to below the navbar,
+                and then changes contentInset to 0. When this happens, it turns out it's unnecessary to change
+                the bounds position in here, as it was already set before the relayout occurs. 
+                TL;DR Crazy hack makes crazy crap happen. This works, and yet I feel so dirty.
+             */
+            if (backgroundEdgeInsets.top == self.contentInset.top)
+                beforeRect.origin.y = self.bounds.origin.y;
+            
+            [fullBoundsAnimation setFromValue:[NSValue valueWithCGRect:beforeRect]];
             fullBoundsAnimation.delegate = self;
             fullBoundsAnimation.removedOnCompletion = YES;
             [self.layer addAnimation:fullBoundsAnimation forKey:@"bounds"];
@@ -696,12 +710,10 @@
             [UIView animateWithDuration:boundsAnimation.duration animations:^{ cell.alpha = 1.0f; }];
         }];
         
-        //self.beforeSnapshotView.frame = (CGRect){(CGPoint)self.frame.origin, self.beforeSnapshotView.frame.size};
-        self.beforeSnapshotView.frame = (CGRect){self.frame.origin, self.beforeSnapshotView.frame.size};
+        self.beforeSnapshotView.frame = (CGRect){(CGPoint)self.frame.origin, self.beforeSnapshotView.frame.size};
         self.beforeSnapshotView.alpha = 0.0f;
         [self.beforeSnapshotView.layer removeAllAnimations];
-        //[self addSubview:self.beforeSnapshotView];
-        [self.superview insertSubview:self.beforeSnapshotView aboveSubview:self];
+        [self.superview addSubview:self.beforeSnapshotView];
         
         //in case the content inset has changed, animate it upwards by the delta
         CGFloat delta = self.contentOffset.y - beforeRect.origin.y;
