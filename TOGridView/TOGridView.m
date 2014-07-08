@@ -1220,7 +1220,7 @@
         self.pauseCrossfadeAnimation = YES;
         
         //Animate each of the selected cells to fade out
-        [UIView animateWithDuration:0.15f delay:0.0f options:UIViewAnimationOptionCurveEaseInOut animations:^{
+        [UIView animateWithDuration:0.35f delay:0.0f options:UIViewAnimationOptionCurveEaseInOut animations:^{
             for (TOGridViewCell *cell in visibleCellsToDelete)
             {
                 cell.alpha = 0.0f;
@@ -1312,11 +1312,12 @@
                 
                 [UIView animateWithDuration:0.30f animations:^{
                     self.contentSize = [self contentSizeOfScrollView];
-                    self.contentOffset = ({
+                    
+                    if (self.contentOffset.y + CGRectGetHeight(self.bounds) > self.contentSize.height) {
                         CGPoint contentOffset = self.contentOffset;
-                        contentOffset.y = MAX(0.0f, self.contentSize.height - CGRectGetHeight(self.bounds));
-                        contentOffset;
-                    });
+                        contentOffset.y = self.contentSize.height - CGRectGetHeight(self.bounds);
+                        self.contentOffset = contentOffset;
+                    }
                 } completion:^(BOOL finished) {
                     self.pauseCrossfadeAnimation = NO;
                 }];
