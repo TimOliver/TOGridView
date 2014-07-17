@@ -274,7 +274,8 @@
     if (self.numberOfCells)
         size.height += (NSInteger)(ceil((CGFloat)self.numberOfCells / (CGFloat)self.numberOfCellsPerRow) * self.rowHeight);
     
-    size.height = MAX(size.height, CGRectGetHeight(self.bounds));
+    CGFloat insetHeights = self.contentInset.bottom + self.contentInset.top;
+    size.height = MAX(size.height, (CGRectGetHeight(self.bounds) - insetHeights) + self.offsetFromHeader);
     
     return size;
 }
@@ -773,6 +774,11 @@
     if (NSLocationInRange(currentlyDraggedOverIndex, self.visibleCellRange) == NO)
         return;
     
+    if (_gridViewFlags.dataSourceCanMoveCell) {
+        if ([self.dataSource gridView:self canMoveCellAtIndex:currentlyDraggedOverIndex] == NO)
+            return;
+    }
+    
     //The direction and number of stops we just moved the cell (eg cell 0 to cell 2 is '2')
     NSInteger offset = -(self.draggingOverIndex - currentlyDraggedOverIndex);
     
@@ -1220,7 +1226,7 @@
         self.pauseCrossfadeAnimation = YES;
         
         //Animate each of the selected cells to fade out
-        [UIView animateWithDuration:0.35f delay:0.0f options:UIViewAnimationOptionCurveEaseInOut animations:^{
+        [UIView animateWithDuration:0.15f delay:0.0f options:UIViewAnimationOptionCurveEaseInOut animations:^{
             for (TOGridViewCell *cell in visibleCellsToDelete)
             {
                 cell.alpha = 0.0f;
@@ -1565,8 +1571,15 @@
     
     UITouch *touch = [touches anyObject];
     TOGridViewCell *cell = [self cellInTouch:touch];
+    NSInteger index = [self indexOfVisibleCell:cell];
+    
     if (cell && !self.decelerating)
     {
+        if (self.editing && _gridViewFlags.dataSourceCanEditCell) {
+            if ([self.dataSource gridView:self canEditCellAtIndex:index] == NO)
+                return;
+        }
+        
         [cell setHighlighted:YES animated:NO];
         
         //if we're set up to receive a long-press tap event, fire the timer now
@@ -1719,6 +1732,11 @@
             
             //unhighlight it
             [cell setHighlighted:NO animated:NO];
+            
+            if (_gridViewFlags.dataSourceCanEditCell) {
+                if ([self.dataSource gridView:self canEditCellAtIndex:index] == NO)
+                    return;
+            }
             
             NSNumber *cellIndexNumber = [NSNumber numberWithInteger:index];
             
@@ -2088,6 +2106,12 @@
     }
     
     return boundsAnimation;
+}
+
+- (void)setContentInset:(UIEdgeInsets)contentInset
+{
+    [super setContentInset:contentInset];
+    [self reloadGrid];
 }
 
 @end
