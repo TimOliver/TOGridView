@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 46;
+	objectVersion = 54;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -15,11 +15,8 @@
 		226C94BB16ABB99C007650CD /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 226C94B816ABB99C007650CD /* main.m */; };
 		2298299516AEBC9F00B7537D /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2298299416AEBC9F00B7537D /* QuartzCore.framework */; };
 		229ED8E916ABBAB7003EDDF6 /* UIDevice+ScreenIdioms.m in Sources */ = {isa = PBXBuildFile; fileRef = 229ED8E816ABBAB7003EDDF6 /* UIDevice+ScreenIdioms.m */; };
-		22DE351716ACF20D0081E9C2 /* CellBG.png in Resources */ = {isa = PBXBuildFile; fileRef = 22DE351616ACF20D0081E9C2 /* CellBG.png */; };
-		22DE351C16ACF2E80081E9C2 /* CellBG@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 22DE351A16ACF2E80081E9C2 /* CellBG@2x.png */; };
-		22DE351F16AD06D00081E9C2 /* CellBGPressed.png in Resources */ = {isa = PBXBuildFile; fileRef = 22DE351D16AD06D00081E9C2 /* CellBGPressed.png */; };
-		22DE352016AD06D00081E9C2 /* CellBGPressed@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 22DE351E16AD06D00081E9C2 /* CellBGPressed@2x.png */; };
 		22DE352316AD15130081E9C2 /* TOGridViewTestCell.m in Sources */ = {isa = PBXBuildFile; fileRef = 22DE352216AD15130081E9C2 /* TOGridViewTestCell.m */; };
+		22E5EC5D3060484B00FB1D4E /* TOGridViewCellHandle@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 22E5EC5C3060484B00FB1D4E /* TOGridViewCellHandle@2x.png */; };
 		F1CD721F16A3DFC6003D5FB8 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F1CD721E16A3DFC6003D5FB8 /* UIKit.framework */; };
 		F1CD722116A3DFC6003D5FB8 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F1CD722016A3DFC6003D5FB8 /* Foundation.framework */; };
 		F1CD722316A3DFC6003D5FB8 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F1CD722216A3DFC6003D5FB8 /* CoreGraphics.framework */; };
@@ -41,12 +38,9 @@
 		2298299416AEBC9F00B7537D /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
 		229ED8E716ABBAB7003EDDF6 /* UIDevice+ScreenIdioms.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "UIDevice+ScreenIdioms.h"; path = "Example/Categories/UIDevice+ScreenIdioms.h"; sourceTree = SOURCE_ROOT; };
 		229ED8E816ABBAB7003EDDF6 /* UIDevice+ScreenIdioms.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = "UIDevice+ScreenIdioms.m"; path = "Example/Categories/UIDevice+ScreenIdioms.m"; sourceTree = SOURCE_ROOT; };
-		22DE351616ACF20D0081E9C2 /* CellBG.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = CellBG.png; sourceTree = "<group>"; };
-		22DE351A16ACF2E80081E9C2 /* CellBG@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "CellBG@2x.png"; sourceTree = "<group>"; };
-		22DE351D16AD06D00081E9C2 /* CellBGPressed.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = CellBGPressed.png; sourceTree = "<group>"; };
-		22DE351E16AD06D00081E9C2 /* CellBGPressed@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "CellBGPressed@2x.png"; sourceTree = "<group>"; };
 		22DE352116AD15130081E9C2 /* TOGridViewTestCell.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = TOGridViewTestCell.h; path = Example/TOGridViewTestCell.h; sourceTree = SOURCE_ROOT; };
 		22DE352216AD15130081E9C2 /* TOGridViewTestCell.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = TOGridViewTestCell.m; path = Example/TOGridViewTestCell.m; sourceTree = SOURCE_ROOT; };
+		22E5EC5C3060484B00FB1D4E /* TOGridViewCellHandle@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "TOGridViewCellHandle@2x.png"; sourceTree = "<group>"; };
 		F1CD721A16A3DFC6003D5FB8 /* TOGridView.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TOGridView.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F1CD721E16A3DFC6003D5FB8 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
 		F1CD722016A3DFC6003D5FB8 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
@@ -91,10 +85,7 @@
 		22DE351516ACF20D0081E9C2 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
-				22DE351D16AD06D00081E9C2 /* CellBGPressed.png */,
-				22DE351E16AD06D00081E9C2 /* CellBGPressed@2x.png */,
-				22DE351A16ACF2E80081E9C2 /* CellBG@2x.png */,
-				22DE351616ACF20D0081E9C2 /* CellBG.png */,
+				22E5EC5C3060484B00FB1D4E /* TOGridViewCellHandle@2x.png */,
 			);
 			name = Resources;
 			path = Example/Resources;
@@ -182,15 +173,17 @@
 		F1CD721116A3DFC6003D5FB8 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 0460;
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 2630;
 				ORGANIZATIONNAME = "Edith Cowan University";
 			};
 			buildConfigurationList = F1CD721416A3DFC6003D5FB8 /* Build configuration list for PBXProject "TOGridViewExample" */;
 			compatibilityVersion = "Xcode 3.2";
-			developmentRegion = English;
+			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
+				Base,
 			);
 			mainGroup = F1CD720F16A3DFC6003D5FB8;
 			productRefGroup = F1CD721B16A3DFC6003D5FB8 /* Products */;
@@ -207,11 +200,8 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				22E5EC5D3060484B00FB1D4E /* TOGridViewCellHandle@2x.png in Resources */,
 				226C94A916ABB954007650CD /* Default-568h@2x.png in Resources */,
-				22DE351716ACF20D0081E9C2 /* CellBG.png in Resources */,
-				22DE351C16ACF2E80081E9C2 /* CellBG@2x.png in Resources */,
-				22DE351F16AD06D00081E9C2 /* CellBGPressed.png in Resources */,
-				22DE352016AD06D00081E9C2 /* CellBGPressed@2x.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -239,17 +229,35 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ARCHS = "$(ARCHS_STANDARD_32_BIT)";
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
 				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
 				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_IDENTITY = "iPhone Developer: Timothy Oliver (8L2KXNUSB8)";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer: Timothy Oliver (8L2KXNUSB8)";
 				COPY_PHASE_STRIP = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
 				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"DEBUG=1",
@@ -257,13 +265,18 @@
 				);
 				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
 				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_MISSING_PROTOTYPES = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
 				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 5.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
+				ONLY_ACTIVE_ARCH = YES;
 				PROVISIONING_PROFILE = "1A51C0A1-59ED-4843-ACAA-BB716856567F";
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
@@ -272,25 +285,46 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ARCHS = "$(ARCHS_STANDARD_32_BIT)";
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
 				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
 				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_IDENTITY = "iPhone Developer: Timothy Oliver (8L2KXNUSB8)";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer: Timothy Oliver (8L2KXNUSB8)";
 				COPY_PHASE_STRIP = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_MISSING_PROTOTYPES = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
 				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 5.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				OTHER_CFLAGS = "-DNS_BLOCK_ASSERTIONS=1";
 				PROVISIONING_PROFILE = "1A51C0A1-59ED-4843-ACAA-BB716856567F";
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALIDATE_PRODUCT = YES;
 			};
@@ -303,6 +337,8 @@
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "Example/TOGridView-Prefix.pch";
 				INFOPLIST_FILE = "Example/TOGridView-Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 15;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.timoliver.${PRODUCT_NAME:rfc1034identifier}";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE = "";
 				WRAPPER_EXTENSION = app;
@@ -316,6 +352,8 @@
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "Example/TOGridView-Prefix.pch";
 				INFOPLIST_FILE = "Example/TOGridView-Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 15;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.timoliver.${PRODUCT_NAME:rfc1034identifier}";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE = "";
 				WRAPPER_EXTENSION = app;
