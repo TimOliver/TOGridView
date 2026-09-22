@@ -78,6 +78,12 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
         CGRect bounds;
         CGPoint contentOffset;
     } _gridViewBeforeRotationState;
+
+    // Cache reconciliation, not view geometry: scrolling still updates the container.
+    NSRange _reconciledCellRange;
+    NSUInteger _cellLayoutGeneration;
+    NSUInteger _reconciledCellLayoutGeneration;
+    BOOL _hasReconciledCellRange;
 }
 
 /* The class that is used to spawn cells */
@@ -260,6 +266,7 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
 
 - (void)resetCellMetrics
 {
+    _cellLayoutGeneration++;
     // Hold weak collaborators for this calculation. Missing optional metrics reset
     // to their defaults when the delegate changes or has been released.
     id<TOGridViewDelegate> delegate = self.delegate;
@@ -366,6 +373,7 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
 
 - (void)invalidateVisibleCells
 {
+    _cellLayoutGeneration++;
     [self enumerateCellDictionary:self.visibleCells withBlock:^(NSInteger index, TOGridViewCell *cell) {
         [cell removeFromSuperview];
         [self.recycledCells addObject:cell];
@@ -422,6 +430,7 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
 
 - (void)updateVisibleCellKeysWithDictionary:(NSDictionary<NSNumber *, NSNumber *> *)updatedCells
 {
+    _cellLayoutGeneration++;
     //Make a copy off the main list to work off (So we don't overwrite older values as we go)
     NSDictionary<NSNumber *, TOGridViewCell *> *visibleCellsCopy = [self.visibleCells copy];
     
@@ -514,6 +523,12 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
     
     //work out the index range of which cells should be visible now
     NSRange visibleCellRange = [self rangeOfVisibleCellsInBounds:self.bounds];
+    NSUInteger generation = _cellLayoutGeneration;
+    BOOL canReuseRange = self.draggingCell == nil && self.insertingCells == nil && !self.pauseCellLayout;
+    if (canReuseRange && _hasReconciledCellRange && _reconciledCellLayoutGeneration == generation &&
+        NSEqualRanges(_reconciledCellRange, visibleCellRange) && self.visibleCells.count == visibleCellRange.length)
+        return;
+    _hasReconciledCellRange = NO;
     
     //go through each visible cell and see if they've moved beyond the visible range
     NSSet<NSNumber *> *cellsToRecyle = [self.visibleCells keysOfEntriesWithOptions:0 passingTest:^BOOL(NSNumber *key, TOGridViewCell *cell, BOOL *stop) {
@@ -535,36 +550,42 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
     
     /* Only proceed with the following code if the number of visible cells is lower than it should be. */
     /* This code produces the most latency, so minimizing its call frequency is critical */
-    if ([self.visibleCells count] >= visibleCellRange.length)
-        return;
-    
-    for (NSInteger i = 0; i < visibleCellRange.length; i++)
-    {
-        NSInteger index = visibleCellRange.location+i;
+    if (self.visibleCells.count < visibleCellRange.length) {
+        for (NSInteger i = 0; i < visibleCellRange.length; i++)
+        {
+            NSInteger index = visibleCellRange.location+i;
         
-        TOGridViewCell *cell = [self cellForIndex:index];
-        if (cell) {
-            continue;
-        }
-        
-        //when the user is dragging a cell around in edit mode, it will be offsetting
-        //the values of all of the cells around it. Compensate for that here
-        //(eg, every cell index past the dragging index bumped up or decreased by 1)
-        NSInteger indexOffset = 0;
-        if (self.draggingCellIndex >= 0) {
-            //if the dragging cell is after its origin
-            if (self.draggingOverIndex >= self.draggingCellIndex) {
-                if (index >= self.draggingCellIndex && index < self.draggingOverIndex)
-                    indexOffset = 1;
+            TOGridViewCell *cell = [self cellForIndex:index];
+            if (cell) {
+                continue;
             }
-            else { //the dragging cell was dragged before
-                if (index <= self.draggingCellIndex && index > self.draggingOverIndex)
-                    indexOffset = -1;
+
+            //when the user is dragging a cell around in edit mode, it will be offsetting
+            //the values of all of the cells around it. Compensate for that here
+            //(eg, every cell index past the dragging index bumped up or decreased by 1)
+            NSInteger indexOffset = 0;
+            if (self.draggingCellIndex >= 0) {
+                //if the dragging cell is after its origin
+                if (self.draggingOverIndex >= self.draggingCellIndex) {
+                    if (index >= self.draggingCellIndex && index < self.draggingOverIndex)
+                        indexOffset = 1;
+                }
+                else { //the dragging cell was dragged before
+                    if (index <= self.draggingCellIndex && index > self.draggingOverIndex)
+                        indexOffset = -1;
+                }
             }
-        }
         
-        [self addCellAtIndex:index dataSourceIndex:index + indexOffset];
+            [self addCellAtIndex:index dataSourceIndex:index + indexOffset];
+        }
     }
+
+    // If a callback invalidated layout, retain the old generation so the next pass
+    // cannot reuse this result. Edits and dragging always take the full path.
+    _reconciledCellRange = visibleCellRange;
+    _reconciledCellLayoutGeneration = generation;
+    _hasReconciledCellRange = self.draggingCell == nil && self.insertingCells == nil &&
+        !self.pauseCellLayout && self.visibleCells.count == visibleCellRange.length;
 }
 
 /* Share the display lifecycle between scrolling and insertion. */
@@ -959,8 +980,8 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
     //Grab a cell that was previously recycled
     if ([self.recycledCells count] > 0)
     {
-        cell = self.recycledCells[0];
-        [self.recycledCells removeObject:cell];
+        cell = self.recycledCells.lastObject;
+        [self.recycledCells removeLastObject];
         return cell;
     }
     
@@ -1523,6 +1544,7 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
     if ([indices count] == 0)
         return YES;
 
+    _cellLayoutGeneration++;
     [self finishInsertion];
     
     for (NSNumber *index in indices)
@@ -2124,6 +2146,7 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
     if (self.delegate == delegate)
         return;
     
+    _cellLayoutGeneration++;
     [super setDelegate:delegate];
     
     //Update the flags with the state of the new delegate
@@ -2147,6 +2170,7 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
     if (self.dataSource == dataSource)
         return;
     
+    _cellLayoutGeneration++;
     _dataSource = dataSource;
     
     //Update the flags with the current state of the data source
@@ -2317,7 +2341,14 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
 
 - (void)setPauseCellLayout:(BOOL)pauseCellLayout
 {
+    _cellLayoutGeneration++;
     _pauseCellLayout = pauseCellLayout;
+}
+
+- (void)setVisibleCells:(NSMutableDictionary<NSNumber *, TOGridViewCell *> *)visibleCells
+{
+    _cellLayoutGeneration++;
+    _visibleCells = visibleCells;
 }
 
 - (void)setContentInset:(UIEdgeInsets)contentInset

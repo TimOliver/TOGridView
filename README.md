@@ -36,6 +36,8 @@ For Swift, the custom initializer is `TOGridView(frame:cellClass:)` and scroll p
 
 The unit-test target includes a Swift 6 client that checks these imports and implements the callbacks with main-actor state.
 
+During scrolling, the grid skips cell reconciliation while the visible range and layout state are unchanged. Reloads, edits, and geometry changes invalidate this shortcut; the scroll container still updates normally. The reuse pool removes cells from its end, and reuse order is unspecified. Public geometry methods remain overridable.
+
 ## What exactly is this thing?
 
 TOGridView is a class I'm developing for implementation into my commercial iOS app [iComics](http://icomics.co/). Given the relatively

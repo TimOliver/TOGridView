@@ -113,7 +113,7 @@ NS_SWIFT_UI_ACTOR
 /* Get the cell object for a specific index (nil if invisible) */
 - (nullable TOGridViewCell *)cellForIndex:(NSInteger)index;
 
-/* Return a recycled cell, or create one using the registered class. */
+/* Return a recycled cell, or create one using the registered class. Reuse order is unspecified. */
 - (TOGridViewCell *)dequeueReusableCell;
 
 /* Original spelling, retained for existing callers and subclass overrides. */
