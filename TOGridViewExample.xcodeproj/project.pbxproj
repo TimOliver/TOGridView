@@ -7,40 +7,61 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		226C94A916ABB954007650CD /* Default-568h@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 226C94A816ABB954007650CD /* Default-568h@2x.png */; };
+		1B99E5C535EFC720B6A68A58 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C340497EC4903F29BADC2B10 /* Foundation.framework */; };
 		226C94B016ABB95F007650CD /* TOGridView.m in Sources */ = {isa = PBXBuildFile; fileRef = 226C94AD16ABB95F007650CD /* TOGridView.m */; };
 		226C94B116ABB95F007650CD /* TOGridViewCell.m in Sources */ = {isa = PBXBuildFile; fileRef = 226C94AF16ABB95F007650CD /* TOGridViewCell.m */; };
 		226C94B616ABB96D007650CD /* TOGridViewAppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 226C94B316ABB96D007650CD /* TOGridViewAppDelegate.m */; };
 		226C94B716ABB96D007650CD /* TOGridViewViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 226C94B516ABB96D007650CD /* TOGridViewViewController.m */; };
 		226C94BB16ABB99C007650CD /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 226C94B816ABB99C007650CD /* main.m */; };
 		2298299516AEBC9F00B7537D /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2298299416AEBC9F00B7537D /* QuartzCore.framework */; };
-		229ED8E916ABBAB7003EDDF6 /* UIDevice+ScreenIdioms.m in Sources */ = {isa = PBXBuildFile; fileRef = 229ED8E816ABBAB7003EDDF6 /* UIDevice+ScreenIdioms.m */; };
 		22DE352316AD15130081E9C2 /* TOGridViewTestCell.m in Sources */ = {isa = PBXBuildFile; fileRef = 22DE352216AD15130081E9C2 /* TOGridViewTestCell.m */; };
-		22E5EC5D3060484B00FB1D4E /* TOGridViewCellHandle@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 22E5EC5C3060484B00FB1D4E /* TOGridViewCellHandle@2x.png */; };
+		403A1DCA3E6B2E3D88BE9CC8 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C340497EC4903F29BADC2B10 /* Foundation.framework */; };
+		875FFE24FBD6D6752F496EDF /* ExampleLayoutTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 50266F9B3AC3F34423B5F4E7 /* ExampleLayoutTests.m */; };
+		D63E7640C62DD91EE41DB99A /* ExampleUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAEF8EF58AE1B2B080DA1681 /* ExampleUITests.swift */; };
+		E3944960BBB4DFA2A9F3965D /* TOGridViewSceneDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 89A5B495A84065FA4926E047 /* TOGridViewSceneDelegate.m */; };
 		F1CD721F16A3DFC6003D5FB8 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F1CD721E16A3DFC6003D5FB8 /* UIKit.framework */; };
 		F1CD722116A3DFC6003D5FB8 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F1CD722016A3DFC6003D5FB8 /* Foundation.framework */; };
 		F1CD722316A3DFC6003D5FB8 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F1CD722216A3DFC6003D5FB8 /* CoreGraphics.framework */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		77E574986BDBE13F8EF63E99 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F1CD721116A3DFC6003D5FB8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F1CD721916A3DFC6003D5FB8;
+			remoteInfo = TOGridView;
+		};
+		EA6A3D5308A495E6760ED4FB /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F1CD721116A3DFC6003D5FB8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F1CD721916A3DFC6003D5FB8;
+			remoteInfo = TOGridView;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
-		226C94A816ABB954007650CD /* Default-568h@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "Default-568h@2x.png"; path = "Example/Default-568h@2x.png"; sourceTree = "<group>"; };
+		124877539B1BB79D79221133 /* TOGridViewExampleTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TOGridViewExampleTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		226C94AC16ABB95F007650CD /* TOGridView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TOGridView.h; sourceTree = "<group>"; };
 		226C94AD16ABB95F007650CD /* TOGridView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = TOGridView.m; sourceTree = "<group>"; };
 		226C94AE16ABB95F007650CD /* TOGridViewCell.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TOGridViewCell.h; sourceTree = "<group>"; };
 		226C94AF16ABB95F007650CD /* TOGridViewCell.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = TOGridViewCell.m; sourceTree = "<group>"; };
-		226C94B216ABB96D007650CD /* TOGridViewAppDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = TOGridViewAppDelegate.h; path = Example/TOGridViewAppDelegate.h; sourceTree = SOURCE_ROOT; };
-		226C94B316ABB96D007650CD /* TOGridViewAppDelegate.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = TOGridViewAppDelegate.m; path = Example/TOGridViewAppDelegate.m; sourceTree = SOURCE_ROOT; };
-		226C94B416ABB96D007650CD /* TOGridViewViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = TOGridViewViewController.h; path = Example/TOGridViewViewController.h; sourceTree = SOURCE_ROOT; };
-		226C94B516ABB96D007650CD /* TOGridViewViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = TOGridViewViewController.m; path = Example/TOGridViewViewController.m; sourceTree = SOURCE_ROOT; };
-		226C94B816ABB99C007650CD /* main.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = main.m; path = Example/main.m; sourceTree = SOURCE_ROOT; };
-		226C94B916ABB99C007650CD /* TOGridView-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = "TOGridView-Info.plist"; path = "Example/TOGridView-Info.plist"; sourceTree = SOURCE_ROOT; };
-		226C94BA16ABB99C007650CD /* TOGridView-Prefix.pch */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "TOGridView-Prefix.pch"; path = "Example/TOGridView-Prefix.pch"; sourceTree = SOURCE_ROOT; };
+		226C94B216ABB96D007650CD /* TOGridViewAppDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TOGridViewAppDelegate.h; sourceTree = "<group>"; };
+		226C94B316ABB96D007650CD /* TOGridViewAppDelegate.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = TOGridViewAppDelegate.m; sourceTree = "<group>"; };
+		226C94B416ABB96D007650CD /* TOGridViewViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TOGridViewViewController.h; sourceTree = "<group>"; };
+		226C94B516ABB96D007650CD /* TOGridViewViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = TOGridViewViewController.m; sourceTree = "<group>"; };
+		226C94B816ABB99C007650CD /* main.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
+		226C94B916ABB99C007650CD /* TOGridView-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "TOGridView-Info.plist"; sourceTree = "<group>"; };
 		2298299416AEBC9F00B7537D /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
-		229ED8E716ABBAB7003EDDF6 /* UIDevice+ScreenIdioms.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "UIDevice+ScreenIdioms.h"; path = "Example/Categories/UIDevice+ScreenIdioms.h"; sourceTree = SOURCE_ROOT; };
-		229ED8E816ABBAB7003EDDF6 /* UIDevice+ScreenIdioms.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = "UIDevice+ScreenIdioms.m"; path = "Example/Categories/UIDevice+ScreenIdioms.m"; sourceTree = SOURCE_ROOT; };
-		22DE352116AD15130081E9C2 /* TOGridViewTestCell.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = TOGridViewTestCell.h; path = Example/TOGridViewTestCell.h; sourceTree = SOURCE_ROOT; };
-		22DE352216AD15130081E9C2 /* TOGridViewTestCell.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = TOGridViewTestCell.m; path = Example/TOGridViewTestCell.m; sourceTree = SOURCE_ROOT; };
-		22E5EC5C3060484B00FB1D4E /* TOGridViewCellHandle@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "TOGridViewCellHandle@2x.png"; sourceTree = "<group>"; };
+		22DE352116AD15130081E9C2 /* TOGridViewTestCell.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TOGridViewTestCell.h; sourceTree = "<group>"; };
+		22DE352216AD15130081E9C2 /* TOGridViewTestCell.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = TOGridViewTestCell.m; sourceTree = "<group>"; };
+		50266F9B3AC3F34423B5F4E7 /* ExampleLayoutTests.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = ExampleLayoutTests.m; sourceTree = "<group>"; };
+		67D5FB5E2FE60C56CD31ADE5 /* TOGridViewSceneDelegate.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = TOGridViewSceneDelegate.h; sourceTree = "<group>"; };
+		89A5B495A84065FA4926E047 /* TOGridViewSceneDelegate.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = TOGridViewSceneDelegate.m; sourceTree = "<group>"; };
+		C340497EC4903F29BADC2B10 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
+		CAEF8EF58AE1B2B080DA1681 /* ExampleUITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ExampleUITests.swift; sourceTree = "<group>"; };
+		DF4FF26F358B79F9C7E2AB60 /* TOGridViewExampleUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TOGridViewExampleUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		F1CD721A16A3DFC6003D5FB8 /* TOGridView.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TOGridView.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F1CD721E16A3DFC6003D5FB8 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
 		F1CD722016A3DFC6003D5FB8 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
@@ -48,6 +69,22 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		7661A21927E72805B4C2F168 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1B99E5C535EFC720B6A68A58 /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		86A077093E0FF567C5D80B1E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				403A1DCA3E6B2E3D88BE9CC8 /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		F1CD721716A3DFC6003D5FB8 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -62,15 +99,6 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		222A932816A7DFFD00C7CBF2 /* Categories */ = {
-			isa = PBXGroup;
-			children = (
-				229ED8E716ABBAB7003EDDF6 /* UIDevice+ScreenIdioms.h */,
-				229ED8E816ABBAB7003EDDF6 /* UIDevice+ScreenIdioms.m */,
-			);
-			name = Categories;
-			sourceTree = "<group>";
-		};
 		226C94AB16ABB95F007650CD /* TOGridView */ = {
 			isa = PBXGroup;
 			children = (
@@ -79,25 +107,43 @@
 				226C94AE16ABB95F007650CD /* TOGridViewCell.h */,
 				226C94AF16ABB95F007650CD /* TOGridViewCell.m */,
 			);
-			name = TOGridView;
+			path = TOGridView;
 			sourceTree = "<group>";
 		};
-		22DE351516ACF20D0081E9C2 /* Resources */ = {
+		3478E6CA8092F2083D7A812B /* Example */ = {
 			isa = PBXGroup;
 			children = (
-				22E5EC5C3060484B00FB1D4E /* TOGridViewCellHandle@2x.png */,
+				226C94B216ABB96D007650CD /* TOGridViewAppDelegate.h */,
+				226C94B316ABB96D007650CD /* TOGridViewAppDelegate.m */,
+				226C94B416ABB96D007650CD /* TOGridViewViewController.h */,
+				226C94B516ABB96D007650CD /* TOGridViewViewController.m */,
+				22DE352116AD15130081E9C2 /* TOGridViewTestCell.h */,
+				22DE352216AD15130081E9C2 /* TOGridViewTestCell.m */,
+				226C94B816ABB99C007650CD /* main.m */,
+				226C94B916ABB99C007650CD /* TOGridView-Info.plist */,
+				67D5FB5E2FE60C56CD31ADE5 /* TOGridViewSceneDelegate.h */,
+				89A5B495A84065FA4926E047 /* TOGridViewSceneDelegate.m */,
 			);
-			name = Resources;
-			path = Example/Resources;
-			sourceTree = SOURCE_ROOT;
+			path = Example;
+			sourceTree = "<group>";
+		};
+		9CAB14850F11FDB794406086 /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				C340497EC4903F29BADC2B10 /* Foundation.framework */,
+			);
+			name = iOS;
+			sourceTree = "<group>";
 		};
 		F1CD720F16A3DFC6003D5FB8 = {
 			isa = PBXGroup;
 			children = (
-				226C94A816ABB954007650CD /* Default-568h@2x.png */,
-				F1CD722416A3DFC6003D5FB8 /* TOGridView */,
 				F1CD721D16A3DFC6003D5FB8 /* Frameworks */,
 				F1CD721B16A3DFC6003D5FB8 /* Products */,
+				3478E6CA8092F2083D7A812B /* Example */,
+				226C94AB16ABB95F007650CD /* TOGridView */,
+				FBA996B468809601C209A507 /* ExampleUITests */,
+				F7529FB54845D1F3CFBD0367 /* ExampleTests */,
 			);
 			sourceTree = "<group>";
 		};
@@ -105,6 +151,8 @@
 			isa = PBXGroup;
 			children = (
 				F1CD721A16A3DFC6003D5FB8 /* TOGridView.app */,
+				DF4FF26F358B79F9C7E2AB60 /* TOGridViewExampleUITests.xctest */,
+				124877539B1BB79D79221133 /* TOGridViewExampleTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -116,40 +164,66 @@
 				F1CD721E16A3DFC6003D5FB8 /* UIKit.framework */,
 				F1CD722016A3DFC6003D5FB8 /* Foundation.framework */,
 				F1CD722216A3DFC6003D5FB8 /* CoreGraphics.framework */,
+				9CAB14850F11FDB794406086 /* iOS */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		F1CD722416A3DFC6003D5FB8 /* TOGridView */ = {
+		F7529FB54845D1F3CFBD0367 /* ExampleTests */ = {
 			isa = PBXGroup;
 			children = (
-				226C94AB16ABB95F007650CD /* TOGridView */,
-				222A932816A7DFFD00C7CBF2 /* Categories */,
-				226C94B216ABB96D007650CD /* TOGridViewAppDelegate.h */,
-				226C94B316ABB96D007650CD /* TOGridViewAppDelegate.m */,
-				226C94B416ABB96D007650CD /* TOGridViewViewController.h */,
-				226C94B516ABB96D007650CD /* TOGridViewViewController.m */,
-				22DE352116AD15130081E9C2 /* TOGridViewTestCell.h */,
-				22DE352216AD15130081E9C2 /* TOGridViewTestCell.m */,
-				22DE351516ACF20D0081E9C2 /* Resources */,
-				F1CD722516A3DFC6003D5FB8 /* Supporting Files */,
+				50266F9B3AC3F34423B5F4E7 /* ExampleLayoutTests.m */,
 			);
-			path = TOGridView;
+			path = ExampleTests;
 			sourceTree = "<group>";
 		};
-		F1CD722516A3DFC6003D5FB8 /* Supporting Files */ = {
+		FBA996B468809601C209A507 /* ExampleUITests */ = {
 			isa = PBXGroup;
 			children = (
-				226C94B816ABB99C007650CD /* main.m */,
-				226C94B916ABB99C007650CD /* TOGridView-Info.plist */,
-				226C94BA16ABB99C007650CD /* TOGridView-Prefix.pch */,
+				CAEF8EF58AE1B2B080DA1681 /* ExampleUITests.swift */,
 			);
-			name = "Supporting Files";
+			path = ExampleUITests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		11E0AD247A1D985D89D063A5 /* TOGridViewExampleUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 45820ABB27E509BF9B3B5BAD /* Build configuration list for PBXNativeTarget "TOGridViewExampleUITests" */;
+			buildPhases = (
+				03D1E734F03F16F1E2047F10 /* Sources */,
+				7661A21927E72805B4C2F168 /* Frameworks */,
+				DD721B0A377047E132075634 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				41EF875485A268971A1D26CF /* PBXTargetDependency */,
+			);
+			name = TOGridViewExampleUITests;
+			productName = TOGridViewExampleUITests;
+			productReference = DF4FF26F358B79F9C7E2AB60 /* TOGridViewExampleUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		BEC068D083B8E2E48106F8DA /* TOGridViewExampleTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C164342DB4C819A6D6A30A97 /* Build configuration list for PBXNativeTarget "TOGridViewExampleTests" */;
+			buildPhases = (
+				AF4C7875D34B9B6FD943B3EB /* Sources */,
+				86A077093E0FF567C5D80B1E /* Frameworks */,
+				A44AC23D6F14C3BCBCF4DBB5 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				079440CE224DFDCEB58C8FAE /* PBXTargetDependency */,
+			);
+			name = TOGridViewExampleTests;
+			productName = TOGridViewExampleTests;
+			productReference = 124877539B1BB79D79221133 /* TOGridViewExampleTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		F1CD721916A3DFC6003D5FB8 /* TOGridView */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = F1CD725316A3DFC6003D5FB8 /* Build configuration list for PBXNativeTarget "TOGridView" */;
@@ -175,10 +249,9 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 2630;
-				ORGANIZATIONNAME = "Edith Cowan University";
 			};
 			buildConfigurationList = F1CD721416A3DFC6003D5FB8 /* Build configuration list for PBXProject "TOGridViewExample" */;
-			compatibilityVersion = "Xcode 3.2";
+			compatibilityVersion = "Xcode 12.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -191,23 +264,53 @@
 			projectRoot = "";
 			targets = (
 				F1CD721916A3DFC6003D5FB8 /* TOGridView */,
+				11E0AD247A1D985D89D063A5 /* TOGridViewExampleUITests */,
+				BEC068D083B8E2E48106F8DA /* TOGridViewExampleTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		A44AC23D6F14C3BCBCF4DBB5 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DD721B0A377047E132075634 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		F1CD721816A3DFC6003D5FB8 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				22E5EC5D3060484B00FB1D4E /* TOGridViewCellHandle@2x.png in Resources */,
-				226C94A916ABB954007650CD /* Default-568h@2x.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		03D1E734F03F16F1E2047F10 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D63E7640C62DD91EE41DB99A /* ExampleUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AF4C7875D34B9B6FD943B3EB /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				875FFE24FBD6D6752F496EDF /* ExampleLayoutTests.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		F1CD721616A3DFC6003D5FB8 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -217,19 +320,111 @@
 				226C94B616ABB96D007650CD /* TOGridViewAppDelegate.m in Sources */,
 				226C94B716ABB96D007650CD /* TOGridViewViewController.m in Sources */,
 				226C94BB16ABB99C007650CD /* main.m in Sources */,
-				229ED8E916ABBAB7003EDDF6 /* UIDevice+ScreenIdioms.m in Sources */,
 				22DE352316AD15130081E9C2 /* TOGridViewTestCell.m in Sources */,
+				E3944960BBB4DFA2A9F3965D /* TOGridViewSceneDelegate.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		079440CE224DFDCEB58C8FAE /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = TOGridView;
+			target = F1CD721916A3DFC6003D5FB8 /* TOGridView */;
+			targetProxy = 77E574986BDBE13F8EF63E99 /* PBXContainerItemProxy */;
+		};
+		41EF875485A268971A1D26CF /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = TOGridView;
+			target = F1CD721916A3DFC6003D5FB8 /* TOGridView */;
+			targetProxy = EA6A3D5308A495E6760ED4FB /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		1D3CB564160292132BEC73E2 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/Example",
+					"$(SRCROOT)/TOGridView",
+				);
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.timoliver.TOGridViewExampleTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/TOGridView.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/TOGridView";
+			};
+			name = Debug;
+		};
+		7E8BA79AE37A892588C78E46 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.timoliver.TOGridViewExampleUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = TOGridView;
+			};
+			name = Debug;
+		};
+		8290A38E6D9A49ACBEB604EB /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.timoliver.TOGridViewExampleUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = TOGridView;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		C9505EA476828D38069B0F07 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SRCROOT)/Example",
+					"$(SRCROOT)/TOGridView",
+				);
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.timoliver.TOGridViewExampleTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/TOGridView.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/TOGridView";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 		F1CD725116A3DFC6003D5FB8 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
+				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
 				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
 				CLANG_WARN_BOOL_CONVERSION = YES;
@@ -249,13 +444,11 @@
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_IDENTITY = "iPhone Developer: Timothy Oliver (8L2KXNUSB8)";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer: Timothy Oliver (8L2KXNUSB8)";
 				COPY_PHASE_STRIP = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
@@ -264,7 +457,6 @@
 					"$(inherited)",
 				);
 				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
-				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_MISSING_PROTOTYPES = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
@@ -272,9 +464,8 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				ONLY_ACTIVE_ARCH = YES;
-				PROVISIONING_PROFILE = "1A51C0A1-59ED-4843-ACAA-BB716856567F";
 				SDKROOT = iphoneos;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -286,6 +477,7 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
+				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
 				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
 				CLANG_WARN_BOOL_CONVERSION = YES;
@@ -305,14 +497,11 @@
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_IDENTITY = "iPhone Developer: Timothy Oliver (8L2KXNUSB8)";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer: Timothy Oliver (8L2KXNUSB8)";
 				COPY_PHASE_STRIP = YES;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_NO_COMMON_BLOCKS = YES;
-				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_MISSING_PROTOTYPES = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
@@ -320,9 +509,8 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				OTHER_CFLAGS = "-DNS_BLOCK_ASSERTIONS=1";
-				PROVISIONING_PROFILE = "1A51C0A1-59ED-4843-ACAA-BB716856567F";
 				SDKROOT = iphoneos;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -333,14 +521,12 @@
 		F1CD725416A3DFC6003D5FB8 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				GCC_PRECOMPILE_PREFIX_HEADER = YES;
-				GCC_PREFIX_HEADER = "Example/TOGridView-Prefix.pch";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 2D9S2U3NJW;
 				INFOPLIST_FILE = "Example/TOGridView-Info.plist";
-				IPHONEOS_DEPLOYMENT_TARGET = 15;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.timoliver.${PRODUCT_NAME:rfc1034identifier}";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE = "";
 				WRAPPER_EXTENSION = app;
 			};
 			name = Debug;
@@ -348,14 +534,12 @@
 		F1CD725516A3DFC6003D5FB8 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				GCC_PRECOMPILE_PREFIX_HEADER = YES;
-				GCC_PREFIX_HEADER = "Example/TOGridView-Prefix.pch";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 2D9S2U3NJW;
 				INFOPLIST_FILE = "Example/TOGridView-Info.plist";
-				IPHONEOS_DEPLOYMENT_TARGET = 15;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.timoliver.${PRODUCT_NAME:rfc1034identifier}";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE = "";
 				WRAPPER_EXTENSION = app;
 			};
 			name = Release;
@@ -363,6 +547,24 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		45820ABB27E509BF9B3B5BAD /* Build configuration list for PBXNativeTarget "TOGridViewExampleUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8290A38E6D9A49ACBEB604EB /* Release */,
+				7E8BA79AE37A892588C78E46 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C164342DB4C819A6D6A30A97 /* Build configuration list for PBXNativeTarget "TOGridViewExampleTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C9505EA476828D38069B0F07 /* Release */,
+				1D3CB564160292132BEC73E2 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		F1CD721416A3DFC6003D5FB8 /* Build configuration list for PBXProject "TOGridViewExample" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

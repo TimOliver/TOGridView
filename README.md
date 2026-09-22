@@ -1,11 +1,30 @@
 # TOGridView 
-#### A light and easy collection view for iOS; compatible with iOS 5 and above.
+A small, customizable grid view for iOS. The example app targets **iOS 15 and later**.
 
 ![TOGridView on iPad in Portrait](https://raw.github.com/TimOliver/TOGridView/master/Screenshots/iPad_Portrait_t.jpg)
 
 [Portrait Screenshot](https://raw.github.com/TimOliver/TOGridView/master/Screenshots/iPad_Portrait.jpg) 
 | 
 [Landscape Screenshot](https://raw.github.com/TimOliver/TOGridView/master/Screenshots/iPad_Landscape.jpg)
+
+## Running the example
+
+Open `TOGridViewExample.xcodeproj` and choose the shared **TOGridViewExample** scheme. Select your development team under Signing & Capabilities when running on a device; no personal signing profile is stored in the project.
+
+The sample uses scene-based windows, a launch-screen configuration, safe-area layout, and columns derived from the available window width. It supports iPhone, iPad, rotation, resizable windows, Dynamic Type, and light/dark appearance. Cell separators are one-pixel views using `UIColor.separatorColor`; the editing controls use SF Symbols. No PNG assets or device-size categories are required.
+
+- Tap **Add** to insert a uniquely numbered cell.
+- Tap **Edit**, then select cells and tap **Delete**.
+- In edit mode, touch and hold a cell to drag it to another position.
+
+The scheme includes layout tests for phone and iPad widths and large text, plus UI tests for adding, selecting, deleting, reordering, and rotation. Run them with **Product → Test** or:
+
+```sh
+xcodebuild -project TOGridViewExample.xcodeproj -scheme TOGridViewExample \
+  -destination 'platform=iOS Simulator,name=iPhone Air' test
+```
+
+Choose an available simulator name on your Mac. The screenshot above and the background below describe the original release.
 
 ## What exactly is this thing?
 
