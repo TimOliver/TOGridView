@@ -214,7 +214,10 @@
 /* Kickstart the loading of the cells when this view is added to the view hierarchy */
 - (void)didMoveToSuperview
 {
-    [self reloadGrid];
+    [super didMoveToSuperview];
+    // Removal can happen while the owning controller and data source are deallocating.
+    if (self.superview != nil)
+        [self reloadGrid];
 }
 
 - (void)dealloc
@@ -269,9 +272,9 @@
         self.offsetOfCellsInRow = [self.delegate verticalOffsetOfCellsInRowsInGridView:self];
     
     /* Work out the spacing between cells */
-    self.widthBetweenCells = (NSInteger)floor(((CGRectGetWidth(self.bounds) - (self.cellPaddingInsets.left + self.cellPaddingInsets.right)) //Overall width of row
+    self.widthBetweenCells = self.numberOfCellsPerRow > 1 ? (NSInteger)floor(((CGRectGetWidth(self.bounds) - (self.cellPaddingInsets.left + self.cellPaddingInsets.right)) //Overall width of row
                                                - (_cellSize.width * self.numberOfCellsPerRow)) //minus the combined width of all cells
-                                              / (self.numberOfCellsPerRow-1)); //divided by the number of gaps between
+                                              / (self.numberOfCellsPerRow-1)) : 0; //no gaps in a single-column layout
     self.widthBetweenCells = MAX(self.widthBetweenCells, 0);
     
     /* Set up the scrollview and the subsequent contentView */
@@ -1862,7 +1865,7 @@
                     [self.selectedCells addObject:cellIndexNumber];
                     
                     if (_gridViewFlags.delegateDidSelectCell)
-                        [self.delegate gridView:self didDeselectCellAtIndex:index];
+                        [self.delegate gridView:self didSelectCellAtIndex:index];
                 }
                 else
                 {
