@@ -38,6 +38,35 @@ The unit-test target includes a Swift 6 client that checks these imports and imp
 
 During scrolling, the grid skips cell reconciliation while the visible range and layout state are unchanged. Reloads, edits, and geometry changes invalidate this shortcut; the scroll container still updates normally. The reuse pool removes cells from its end, and reuse order is unspecified. Public geometry methods remain overridable.
 
+## Cell reuse and data prefetching
+
+Override `prepareForReuse` in your cell subclass to cancel cell-owned work and clear temporary state. Call `super`. The grid calls this hook once immediately before returning a recycled cell from either dequeue spelling; newly allocated cells do not receive it. The base implementation does nothing, preserving existing subclasses. Configure every cell's content in `gridView:cellForIndex:`. For asynchronous images, check the cell's current item identity before applying a result, even after cancelling an older request.
+
+Data prefetching is optional. Adopt `TOGridViewDataSourcePrefetching` and assign a retained provider to the grid's weak `prefetchDataSource` property:
+
+```objc
+gridView.prefetchDataSource = self;
+gridView.prefetchRowCount = 2; // Default: two offscreen rows on each side.
+
+- (void)gridView:(TOGridView *)gridView prefetchCellsAtIndices:(NSArray<NSNumber *> *)indices
+{
+    // Start asynchronous data/image preparation. Save the original item IDs and
+    // task handles for these indices; do not create cells or block the main thread.
+}
+
+- (void)gridView:(TOGridView *)gridView cancelPrefetchingForCellsAtIndices:(NSArray<NSNumber *> *)indices
+{
+    // Optional: release each saved prefetch request. Cancel shared work only when
+    // no visible cell or other consumer still needs it.
+}
+```
+
+Callbacks run on the main thread after the current layout/update call stack. Requests contain unique indices in ascending order. Overlapping requests stay active as the viewport moves; obsolete offscreen requests are cancelled. When `cellForIndex:` needs a prefetched item, its request is handed over without cancellation. Loading must also work when no prefetch request was made, or when its result is not ready yet. Swift imports the callbacks as `gridView(_:prefetchCellsAt:)` and `gridView(_:cancelPrefetchingForCellsAt:)`.
+
+Reloads and index-changing edits cancel outstanding requests before issuing fresh ones. Cancellation indices identify the original requests: after changing your model, use saved item IDs/task handles rather than looking up those indices again. This also applies to single-cell reloads, which conservatively invalidate all pending prefetch requests. Call `reloadGrid` after replacing the cell data source so the grid has current counts and metrics.
+
+Prefetching pauses during animated edits and cell dragging, and while the grid is detached from a window. Set `prefetchRowCount` to zero or clear `prefetchDataSource` to disable it. Cancellation is deferred and advisory; no callbacks are sent from deallocation, so the provider remains responsible for its own task/cache lifetime. Prefetching prepares application data only; it does not create offscreen cells or spread cell configuration across frames.
+
 ## What exactly is this thing?
 
 TOGridView is a class I'm developing for implementation into my commercial iOS app [iComics](http://icomics.co/). Given the relatively

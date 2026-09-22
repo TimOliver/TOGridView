@@ -26,6 +26,11 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface TOGridViewCell : UIView
 
+/* Called on the main thread immediately before a recycled cell is returned by either dequeue
+   spelling. Not called for newly allocated cells. The default implementation does nothing;
+   subclasses can cancel pending work and reset temporary state, then configure all content. */
+- (void)prepareForReuse NS_REQUIRES_SUPER;
+
 /* State overrides must call super so the grid can continue to read the current state. */
 /* Set the state of the cell to editing. Will be called on all visible cells when the grid view enters edit mode */
 - (void)setEditing: (BOOL)editing animated: (BOOL)animated NS_REQUIRES_SUPER;

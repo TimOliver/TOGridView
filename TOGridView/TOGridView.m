@@ -84,6 +84,14 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
     NSUInteger _cellLayoutGeneration;
     NSUInteger _reconciledCellLayoutGeneration;
     BOOL _hasReconciledCellRange;
+
+    NSMutableIndexSet *_prefetchedIndices;
+    __weak id<TOGridViewDataSourcePrefetching> _prefetchRequestSource;
+    NSUInteger _prefetchGeneration;
+    NSUInteger _prefetchRequestGeneration;
+    NSUInteger _prefetchUpdateVersion;
+    BOOL _prefetchUpdateScheduled;
+    BOOL _prefetchNeedsDataSourceReload;
 }
 
 /* The class that is used to spawn cells */
@@ -180,6 +188,9 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
 - (void)cancelDraggingCell;
 - (void)startAnimatingScrollViewDragging;
 - (void)stopAnimatingScrollViewDragging;
+- (void)schedulePrefetchUpdate;
+- (void)invalidatePrefetching;
+- (void)updatePrefetching;
 
 @end
 
@@ -219,6 +230,7 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
         self.numberOfCellsPerRow        = 1;
         self.draggingOverIndex          = -1;
         self.draggingCellIndex          = -1;
+        _prefetchRowCount               = 2;
     }
     
     return self;
@@ -248,10 +260,20 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
         [self reloadGrid];
 }
 
+- (void)didMoveToWindow
+{
+    [super didMoveToWindow];
+    if (self.window == nil)
+        [self invalidatePrefetching];
+    else
+        [self schedulePrefetchUpdate];
+}
+
 #pragma mark -
 #pragma mark Set-up
 - (void)reloadGrid
 {    
+    [self invalidatePrefetching];
     [self finishInsertion];
 
     /* Use the delegate+dataSource to set up the rendering logistics of the cells */
@@ -267,12 +289,14 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
 - (void)resetCellMetrics
 {
     _cellLayoutGeneration++;
+    [self schedulePrefetchUpdate];
     // Hold weak collaborators for this calculation. Missing optional metrics reset
     // to their defaults when the delegate changes or has been released.
     id<TOGridViewDelegate> delegate = self.delegate;
     id<TOGridViewDataSource> dataSource = self.dataSource;
     self.numberOfCellsPerRow = _gridViewFlags.delegateNumberOfCellsPerRow ? MAX(1, (NSInteger)[delegate numberOfCellsPerRowForGridView:self]) : 1;
     self.numberOfCells = _gridViewFlags.dataSourceNumberOfCells ? [dataSource numberOfCellsInGridView:self] : 0;
+    _prefetchNeedsDataSourceReload = NO;
     self.cellPaddingInsets = _gridViewFlags.delegateBoundaryInsets ? [delegate boundaryInsetsForGridView:self] : UIEdgeInsetsZero;
     self.cellSize = _gridViewFlags.delegateSizeOfCells ? [delegate sizeOfCellsForGridView:self] : CGSizeZero;
     self.rowHeight = _gridViewFlags.delegateHeightOfRows ? [delegate heightOfRowsInGridView:self] : self.cellSize.height;
@@ -516,10 +540,13 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
     if (self.dataSource == nil) {
         self.numberOfCells = 0;
         [self invalidateVisibleCells];
+        [self schedulePrefetchUpdate];
         return;
     }
-    if (self.numberOfCells == 0)
+    if (self.numberOfCells == 0) {
+        [self schedulePrefetchUpdate];
         return;
+    }
     
     //work out the index range of which cells should be visible now
     NSRange visibleCellRange = [self rangeOfVisibleCellsInBounds:self.bounds];
@@ -586,11 +613,15 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
     _reconciledCellLayoutGeneration = generation;
     _hasReconciledCellRange = self.draggingCell == nil && self.insertingCells == nil &&
         !self.pauseCellLayout && self.visibleCells.count == visibleCellRange.length;
+    [self schedulePrefetchUpdate];
 }
 
 /* Share the display lifecycle between scrolling and insertion. */
 - (TOGridViewCell *)addCellAtIndex:(NSInteger)index dataSourceIndex:(NSInteger)dataSourceIndex
 {
+    // The data source now owns this request. Do not cancel its load on a later scroll.
+    if (_prefetchRequestGeneration == _prefetchGeneration)
+        [_prefetchedIndices removeIndex:dataSourceIndex];
     id<TOGridViewDataSource> dataSource = self.dataSource;
     BOOL animationsEnabled = [UIView areAnimationsEnabled];
     [UIView setAnimationsEnabled:NO];
@@ -982,6 +1013,7 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
     {
         cell = self.recycledCells.lastObject;
         [self.recycledCells removeLastObject];
+        [cell prepareForReuse];
         return cell;
     }
     
@@ -1038,6 +1070,7 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
         [insertedIndices addIndex:index];
     }
 
+    [self invalidatePrefetching];
     [self finishInsertion];
     self.pauseCellLayout = YES;
     self.pauseCrossfadeAnimation = YES;
@@ -1243,6 +1276,7 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
     if ([indices count] == 0)
         return YES;
 
+    [self invalidatePrefetching];
     [self finishInsertion];
     
     //cancel the cell dragging if it's active
@@ -1545,6 +1579,7 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
         return YES;
 
     _cellLayoutGeneration++;
+    [self invalidatePrefetching];
     [self finishInsertion];
     
     for (NSNumber *index in indices)
@@ -2140,6 +2175,120 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
 }
 
 #pragma mark -
+#pragma mark Data Prefetching
+
+- (void)setPrefetchDataSource:(id<TOGridViewDataSourcePrefetching>)prefetchDataSource
+{
+    if (_prefetchDataSource == prefetchDataSource)
+        return;
+    _prefetchDataSource = prefetchDataSource;
+    [self invalidatePrefetching];
+}
+
+- (void)setPrefetchRowCount:(NSUInteger)prefetchRowCount
+{
+    if (_prefetchRowCount == prefetchRowCount)
+        return;
+    _prefetchRowCount = prefetchRowCount;
+    if (prefetchRowCount == 0)
+        [self invalidatePrefetching];
+    else
+        [self schedulePrefetchUpdate];
+}
+
+- (void)invalidatePrefetching
+{
+    _prefetchGeneration++;
+    [self schedulePrefetchUpdate];
+}
+
+- (void)schedulePrefetchUpdate
+{
+    // No allocation or queue work for clients that have not opted in.
+    if (_prefetchDataSource == nil && _prefetchedIndices.count == 0)
+        return;
+    _prefetchUpdateVersion++;
+    if (_prefetchUpdateScheduled)
+        return;
+    _prefetchUpdateScheduled = YES;
+    __weak TOGridView *weakSelf = self;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        TOGridView *grid = weakSelf;
+        if (grid == nil)
+            return;
+        grid->_prefetchUpdateScheduled = NO;
+        [grid updatePrefetching];
+    });
+}
+
+- (void)updatePrefetching
+{
+    id<TOGridViewDataSourcePrefetching> source = self.prefetchDataSource;
+    id<TOGridViewDataSourcePrefetching> previousSource = _prefetchRequestSource;
+    NSUInteger generation = _prefetchGeneration;
+    NSUInteger version = _prefetchUpdateVersion;
+    CGRect bounds = self.bounds;
+    NSMutableIndexSet *desired = [NSMutableIndexSet indexSet];
+    NSRange visibleRange = NSMakeRange(0, 0);
+    if (source != nil && self.dataSource != nil && self.window != nil && self.prefetchRowCount > 0 &&
+        self.numberOfCells > 0 && self.numberOfCellsPerRow > 0 && self.rowHeight > 0 &&
+        !CGRectIsEmpty(bounds) && !_prefetchNeedsDataSourceReload && !self.pauseCellLayout && !self.freezeLayoutSubviews &&
+        self.draggingCell == nil && self.insertingCells == nil) {
+        visibleRange = [self rangeOfVisibleCellsInBounds:bounds];
+        NSUInteger count = self.numberOfCells;
+        if (visibleRange.length > 0 && visibleRange.location < count) {
+            // Clamp before multiplying, including extremely large caller-supplied row counts.
+            NSUInteger columns = self.numberOfCellsPerRow;
+            NSUInteger distance = self.prefetchRowCount > count / columns ? count : self.prefetchRowCount * columns;
+            NSUInteger end = visibleRange.location + MIN(visibleRange.length, count - visibleRange.location);
+            visibleRange.length = end - visibleRange.location;
+            NSUInteger start = visibleRange.location - MIN(distance, visibleRange.location);
+            [desired addIndexesInRange:NSMakeRange(start, visibleRange.location - start)];
+            [desired addIndexesInRange:NSMakeRange(end, MIN(distance, count - end))];
+            // Geometry may have changed before UIKit gets to its next layout pass.
+            for (NSNumber *index in self.visibleCells)
+                [desired removeIndex:index.unsignedIntegerValue];
+        } else {
+            visibleRange = NSMakeRange(0, 0);
+        }
+    }
+
+    NSMutableIndexSet *cancelled = [_prefetchedIndices mutableCopy] ?: [NSMutableIndexSet indexSet];
+    BOOL sameRequests = previousSource == source && _prefetchRequestGeneration == generation;
+    if (sameRequests) {
+        [cancelled removeIndexes:desired];
+        // A newly visible item may still be waiting for layout to call cellForIndex:.
+        // Keep its load alive until addCellAtIndex: hands it to the data source.
+        [cancelled removeIndexesInRange:visibleRange];
+    }
+    NSMutableIndexSet *retained = [_prefetchedIndices mutableCopy] ?: [NSMutableIndexSet indexSet];
+    [retained removeIndexes:cancelled];
+    _prefetchedIndices = retained;
+    _prefetchRequestSource = source;
+    _prefetchRequestGeneration = generation;
+
+    // Publish the retained requests first, so a callback can safely disable, replace,
+    // or reload the provider without cancelling the same request a second time.
+    if (cancelled.count > 0 && [previousSource respondsToSelector:@selector(gridView:cancelPrefetchingForCellsAtIndices:)]) {
+        NSMutableArray<NSNumber *> *indices = [NSMutableArray arrayWithCapacity:cancelled.count];
+        [cancelled enumerateIndexesUsingBlock:^(NSUInteger index, BOOL *stop) { [indices addObject:@(index)]; }];
+        [previousSource gridView:self cancelPrefetchingForCellsAtIndices:indices];
+    }
+    if (generation != _prefetchGeneration || version != _prefetchUpdateVersion || !CGRectEqualToRect(bounds, self.bounds)) {
+        [self schedulePrefetchUpdate];
+        return;
+    }
+
+    [desired removeIndexes:retained];
+    if (desired.count > 0) {
+        [_prefetchedIndices addIndexes:desired];
+        NSMutableArray<NSNumber *> *indices = [NSMutableArray arrayWithCapacity:desired.count];
+        [desired enumerateIndexesUsingBlock:^(NSUInteger index, BOOL *stop) { [indices addObject:@(index)]; }];
+        [source gridView:self prefetchCellsAtIndices:indices];
+    }
+}
+
+#pragma mark -
 #pragma mark Accessors
 - (void)setDelegate:(id<TOGridViewDelegate>)delegate
 {
@@ -2172,6 +2321,8 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
     
     _cellLayoutGeneration++;
     _dataSource = dataSource;
+    _prefetchNeedsDataSourceReload = YES;
+    [self invalidatePrefetching];
     
     //Update the flags with the current state of the data source
     _gridViewFlags.dataSourceCellForIndex       = [dataSource respondsToSelector:@selector(gridView:cellForIndex:)];
@@ -2343,6 +2494,12 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
 {
     _cellLayoutGeneration++;
     _pauseCellLayout = pauseCellLayout;
+    // Indices may be remapped during an edit or drag. Cancel the old requests even
+    // if the entire operation finishes before the deferred update runs.
+    if (pauseCellLayout)
+        [self invalidatePrefetching];
+    else
+        [self schedulePrefetchUpdate];
 }
 
 - (void)setVisibleCells:(NSMutableDictionary<NSNumber *, TOGridViewCell *> *)visibleCells

@@ -3,8 +3,10 @@ import UIKit
 
 // Built in Swift 6 mode: UIKit callbacks must be compatible with main-actor state.
 @MainActor
-private final class SwiftGridProvider: NSObject, TOGridViewDataSource, TOGridViewDelegate {
+private final class SwiftGridProvider: NSObject, TOGridViewDataSource, TOGridViewDelegate, TOGridViewDataSourcePrefetching {
     var count = 12
+    var requested: [NSNumber] = []
+    var cancelled: [NSNumber] = []
 
     func numberOfCells(in gridView: TOGridView) -> UInt { UInt(count) }
     func gridView(_ gridView: TOGridView, cellFor index: Int) -> TOGridViewCell {
@@ -12,6 +14,18 @@ private final class SwiftGridProvider: NSObject, TOGridViewDataSource, TOGridVie
     }
     func sizeOfCells(for gridView: TOGridView) -> CGSize { CGSize(width: 160, height: 80) }
     func numberOfCellsPerRow(for gridView: TOGridView) -> UInt { 2 }
+    func gridView(_ gridView: TOGridView, prefetchCellsAt indices: [NSNumber]) { requested += indices }
+    func gridView(_ gridView: TOGridView, cancelPrefetchingForCellsAt indices: [NSNumber]) { cancelled += indices }
+}
+
+@MainActor
+private final class SwiftGridCell: TOGridViewCell {
+    var temporaryState: String?
+
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        temporaryState = nil
+    }
 }
 
 @MainActor
@@ -21,6 +35,8 @@ final class SwiftAPICompatibilityTests: XCTestCase {
         let provider = SwiftGridProvider()
         grid.dataSource = provider
         grid.delegate = provider
+        grid.prefetchDataSource = provider
+        grid.prefetchRowCount = 1
         grid.reloadGrid()
 
         let cells: [TOGridViewCell] = grid.visibleCellViews
@@ -38,5 +54,11 @@ final class SwiftAPICompatibilityTests: XCTestCase {
         grid.backgroundView = nil
         grid.dataSource = nil
         grid.delegate = nil
+        grid.prefetchDataSource = nil
+
+        let cell = SwiftGridCell()
+        cell.temporaryState = "Previous item"
+        cell.prepareForReuse()
+        XCTAssertNil(cell.temporaryState)
     }
 }

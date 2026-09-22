@@ -48,6 +48,11 @@
     return self;
 }
 
+- (void)prepareForReuse
+{
+    // Preserve existing subclass behavior; content cleanup belongs to the cell's owner.
+}
+
 #pragma mark -
 #pragma mark Cell Selection Style Handlers
 - (void)setEditing:(BOOL)editing

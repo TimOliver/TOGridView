@@ -52,6 +52,26 @@ NS_SWIFT_UI_ACTOR
 
 @end
 
+/// Optional advance requests for application data, not cell creation.
+NS_SWIFT_UI_ACTOR
+@protocol TOGridViewDataSourcePrefetching <NSObject>
+
+/* Called on the main thread, deferred until after the current layout/update call stack.
+   Start asynchronous work here. These advisory requests are not guaranteed before cellForIndex:.
+   Indices are unique, ascending positions in the data source at the time of the request. */
+- (void)gridView:(TOGridView *)gridView prefetchCellsAtIndices:(NSArray<NSNumber *> *)indices
+    NS_SWIFT_NAME(gridView(_:prefetchCellsAt:));
+
+@optional
+/* Cancels outstanding offscreen requests. Indices refer to the original request, so retain
+   its item identity/task instead of looking it up in an already-mutated model. A request is
+   handed over without cancellation when cellForIndex: is called for that item. Cancellation
+   is advisory and is not sent during deallocation; the owner must also manage task lifetimes. */
+- (void)gridView:(TOGridView *)gridView cancelPrefetchingForCellsAtIndices:(NSArray<NSNumber *> *)indices
+    NS_SWIFT_NAME(gridView(_:cancelPrefetchingForCellsAt:));
+
+@end
+
 ///
 /// Delegate Object
 ///
@@ -88,6 +108,13 @@ NS_SWIFT_UI_ACTOR
 
 @property (nonatomic, weak, nullable) id <TOGridViewDataSource>    dataSource;  /* The object that provides cells. Keep a strong reference elsewhere. */
 @property (nonatomic, weak, nullable) id <TOGridViewDelegate>      delegate;    /* The object that the grid view will send events to. */
+
+/* Assign a provider to opt in; nil by default. Retain it elsewhere. Prefetching runs only
+   while attached to a window and pauses during animated edits and cell dragging. */
+@property (nonatomic, weak, nullable) id<TOGridViewDataSourcePrefetching> prefetchDataSource;
+/* Number of offscreen rows requested on EACH side of the visible range. Default: 2.
+   Zero disables prefetching and cancels outstanding requests. */
+@property (nonatomic) NSUInteger prefetchRowCount;
 
 @property (nonatomic, strong, nullable) UIView      *headerView;                  /* A UIView placed at the top of the grid view. Set nil to remove. */
 @property (nonatomic, strong, nullable) UIView      *backgroundView;              /* A UIView placed behind the grid view and locked so it won't scroll */
