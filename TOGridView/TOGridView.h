@@ -116,6 +116,7 @@ typedef enum {
 - (UIView *)dequeueReusableDecorationView;
 
 /* Add new cells. Update the data source first; indices are unique positions in its final state.
+   Animated insertions use staggered springs, revealing new cells while the movement settles.
    The completion handler runs once per batch, including an empty batch or an interrupted animation. */
 - (BOOL)insertCellAtIndex:(NSInteger)index animated:(BOOL)animated;
 - (BOOL)insertCellAtIndex:(NSInteger)index animated:(BOOL)animated completionHandler:(void (^)(void))completionHandler;

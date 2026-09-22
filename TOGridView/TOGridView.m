@@ -31,6 +31,23 @@
 #define TOP_OFFSET      -self.contentInset.top
 #define BOTTOM_OFFSET   (self.contentSize.height+(self.contentInset.bottom) - CGRectGetHeight(self.bounds))
 
+static const NSTimeInterval TOGridViewReorderSpringDuration = 0.35;
+static const NSTimeInterval TOGridViewReorderStaggerDelay = 0.03;
+
+static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)(void), void (^completion)(BOOL))
+{
+    // A critically damped spring gives the cascade a quick response and a soft landing.
+    if (@available(iOS 17.0, *)) {
+        [UIView animateWithSpringDuration:TOGridViewReorderSpringDuration bounce:0.0 initialSpringVelocity:0.0 delay:delay
+                                 options:UIViewAnimationOptionBeginFromCurrentState
+                              animations:animations completion:completion];
+    } else {
+        [UIView animateWithDuration:TOGridViewReorderSpringDuration delay:delay usingSpringWithDamping:1.0 initialSpringVelocity:0.0
+                            options:UIViewAnimationOptionBeginFromCurrentState
+                         animations:animations completion:completion];
+    }
+}
+
 @interface TOGridView () {
     
     /* Store what protocol methods the delegate/dataSource implement to help reduce overhead involved with checking that at runtime */
@@ -874,35 +891,15 @@
         NSInteger delta = newIndex - self.draggingOverIndex;
         delta = (delta < 0) ? -delta : delta; //64-bit compatible abs()
         
-        //set the cell's original origin
-        __block CGRect frame = CGRectZero;
-        
-        //if the view isn't scrolling, we can use the presentation layer to pause views mid-animation
-        if (self.dragScrollTimerLink)
-            frame = (CGRect){[self originOfCellAtIndex:index], [self sizeOfCellAtIndex:index]};
-        else
-            frame = [cell.layer.presentationLayer frame];
-        
-        cell.frame = frame;
-        
-        //kill any pending animations
-        [cell.layer removeAllAnimations];
-        
-        //animate it with a slight delay depending on how far away it was from the origin, so it looks a little more fluid
-        [UIView animateWithDuration:0.25f delay:0.05f*delta options:UIViewAnimationOptionCurveEaseInOut animations:^{
-            CGFloat y = frame.origin.y;
-            frame.origin = [self originOfCellAtIndex:newIndex];
-            
-            //if a cell is shifting lines, make sure it renders ABOVE any other cells
-            if ((NSInteger)y != (NSInteger)frame.origin.y)
-                [self.cellContainerView insertSubview:cell belowSubview:self.draggingCell];
-            
-            //if the grid view is having to do a small amount of cell padding (eg, if the width of each cell doesn't fit the screen properly)
-            //reset the cell here
-            frame.size = [self sizeOfCellAtIndex:newIndex];
+        CGRect frame = [self rectOfCellAtIndex:newIndex];
+        // Keep row-crossing cells above their neighbors and below the dragged cell.
+        if ((NSInteger)CGRectGetMinY(cell.frame) != (NSInteger)CGRectGetMinY(frame))
+            [self.cellContainerView insertSubview:cell belowSubview:self.draggingCell];
+
+        // Let UIKit retarget an in-flight spring from its current presentation state.
+        TOGridViewAnimateReordering(delta * TOGridViewReorderStaggerDelay, ^{
             cell.frame = frame;
-            
-        } completion:nil];
+        }, nil);
     }
     
     //include the dragging cell with the visible updates
@@ -1075,10 +1072,7 @@
 
     void (^moveCells)(void) = ^{
         [self enumerateCellDictionary:self.visibleCells withBlock:^(NSInteger index, TOGridViewCell *cell) {
-            CGRect frame = [self rectOfCellAtIndex:index];
-            if (animated && CGRectGetMinY(frame) != CGRectGetMinY(cell.frame))
-                [self.cellContainerView bringSubviewToFront:cell];
-            cell.frame = frame;
+            cell.frame = [self rectOfCellAtIndex:index];
         }];
         if (self.footerView)
             self.footerView.frame = [self footerViewFrame];
@@ -1102,27 +1096,75 @@
             return;
         [self finishInsertionWithLayout:YES];
     };
-    [UIView animateWithDuration:0.2 delay:0.03 options:UIViewAnimationOptionCurveEaseInOut animations:moveCells completion:^(BOOL finished) {
+    // Match deletion's cascade: each row wrap adds a small delay, while cells
+    // moving within the same row travel together. Unchanged cells add no delay.
+    NSMutableArray *movingIndices = [NSMutableArray array];
+    for (NSNumber *key in [[self.visibleCells allKeys] sortedArrayUsingSelector:@selector(compare:)]) {
+        TOGridViewCell *cell = self.visibleCells[key];
+        if (!CGRectEqualToRect(cell.frame, [self rectOfCellAtIndex:key.integerValue]))
+            [movingIndices addObject:key];
+    }
+    CGRect footerFrame = [self footerViewFrame];
+    BOOL movesFooter = self.footerView && !CGRectEqualToRect(self.footerView.frame, footerFrame);
+    BOOL hasMovement = movingIndices.count > 0 || movesFooter;
+    // Movement and reveal overlap; finish only after both have settled.
+    __block NSUInteger remainingAnimations = movingIndices.count + (movesFooter ? 1 : 0) + (newCells.count > 0 ? 1 : 0);
+    void (^didFinishAnimation)(BOOL) = ^(BOOL finished) {
         if (generation != self.insertionGeneration)
             return;
-        if (newCells.count == 0 || !finished) {
+        if (--remainingAnimations == 0)
             finish();
-            return;
+    };
+
+    if (remainingAnimations == 0) {
+        finish();
+        return YES;
+    }
+
+    NSUInteger stagger = 0;
+    for (NSNumber *key in movingIndices) {
+        TOGridViewCell *cell = self.visibleCells[key];
+        CGRect frame = [self rectOfCellAtIndex:key.integerValue];
+        if ((NSInteger)CGRectGetMinY(cell.frame) != (NSInteger)CGRectGetMinY(frame)) {
+            [self.cellContainerView bringSubviewToFront:cell];
+            if ((NSInteger)CGRectGetMinX(cell.frame) != (NSInteger)CGRectGetMinX(frame))
+                stagger++;
         }
-        [UIView performWithoutAnimation:^{
-            for (TOGridViewCell *cell in newCells) {
-                cell.hidden = NO;
-                cell.alpha = 0.0;
-                cell.transform = CGAffineTransformMakeScale(0.5, 0.5);
-            }
-        }];
-        [UIView animateWithDuration:0.15 delay:0 options:UIViewAnimationOptionCurveEaseOut animations:^{
-            for (TOGridViewCell *cell in newCells) {
-                cell.alpha = 1.0;
-                cell.transform = CGAffineTransformIdentity;
-            }
-        } completion:^(BOOL complete) { finish(); }];
-    }];
+        TOGridViewAnimateReordering(stagger * TOGridViewReorderStaggerDelay, ^{
+            cell.frame = frame;
+        }, didFinishAnimation);
+    }
+    if (movesFooter) {
+        TOGridViewAnimateReordering(stagger * TOGridViewReorderStaggerDelay, ^{
+            self.footerView.frame = footerFrame;
+        }, didFinishAnimation);
+    }
+    if (newCells.count > 0) {
+        void (^revealNewCells)(void) = ^{
+            // A reload, resize or later edit may have already recycled these cells.
+            if (generation != self.insertionGeneration)
+                return;
+            [UIView performWithoutAnimation:^{
+                for (TOGridViewCell *cell in newCells) {
+                    cell.hidden = NO;
+                    cell.alpha = 0.0;
+                    cell.transform = CGAffineTransformMakeScale(0.5, 0.5);
+                }
+            }];
+            [UIView animateWithDuration:0.15 delay:0 options:UIViewAnimationOptionCurveEaseOut animations:^{
+                for (TOGridViewCell *cell in newCells) {
+                    cell.alpha = 1.0;
+                    cell.transform = CGAffineTransformIdentity;
+                }
+            } completion:didFinishAnimation];
+        };
+        // Reveal new cells while the movement is still settling.
+        NSTimeInterval revealDelay = hasMovement && UIView.areAnimationsEnabled ? 0.2 : 0;
+        if (revealDelay > 0)
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(revealDelay * NSEC_PER_SEC)), dispatch_get_main_queue(), revealNewCells);
+        else
+            revealNewCells();
+    }
     return YES;
 }
 
@@ -1342,13 +1384,6 @@
                 [self.cellContainerView addSubview:newCell];
             }
             
-            //find the FINAL cell index so we can clean up after all of the animations
-            __block NSInteger finalCellIndex = 0;
-            [self enumerateCellDictionary:self.visibleCells withBlock:^(NSInteger index, TOGridViewCell *cell) {
-                if (index > finalCellIndex)
-                    finalCellIndex = index;
-            }];
-            
             //sort the visible cells into their respective order so we can sort it in the right order
             NSArray *sortedVisibleCellIndices = [[self.visibleCells allKeys] sortedArrayUsingSelector:@selector(compare:)];
             
@@ -1402,6 +1437,8 @@
             };
             
             if (sortedVisibleCellIndices.count) {
+                // Wait for every spring to settle before layout can recycle cells.
+                __block NSUInteger remainingAnimations = sortedVisibleCellIndices.count;
                 //reset the size of all of the remaining cells before they move
                 NSInteger i = 0; //i is used to add a cascading delay in front of cells
                 for (NSNumber *key in sortedVisibleCellIndices)
@@ -1426,7 +1463,7 @@
                     if ((NSInteger)cell.frame.origin.y != (NSInteger)newOrigin.y && (NSInteger)cell.frame.origin.x != (NSInteger)newOrigin.x)
                         i++;
                     
-                    [UIView animateWithDuration:0.30f delay:i*0.03f options:UIViewAnimationOptionCurveEaseInOut animations:^{
+                    TOGridViewAnimateReordering(i * TOGridViewReorderStaggerDelay, ^{
                         CGRect frame = cell.frame;
                         frame.origin = newOrigin;
                         
@@ -1435,12 +1472,12 @@
                             frame.origin.y = CGRectGetMinY(cell.frame) - (CGRectGetHeight(self.bounds)+CGRectGetHeight(cell.frame));
                         
                         cell.frame = frame;
-                    } completion:^(BOOL finished) {
-                        if (index != finalCellIndex)
+                    }, ^(BOOL finished) {
+                        if (--remainingAnimations != 0)
                             return;
                         
                         completionBlock();
-                    }];
+                    });
                 }
             }
             else {
@@ -2039,10 +2076,7 @@
             }
         };
         
-        if ([[UIView class] respondsToSelector:@selector(animateWithDuration:delay:usingSpringWithDamping:initialSpringVelocity:options:animations:completion:)])
-            [UIView animateWithDuration:0.3f delay:0.0f usingSpringWithDamping:0.8f initialSpringVelocity:5.0f options:0 animations:animationBlock completion:completionBlock];
-        else
-            [UIView animateWithDuration:0.20f delay:0.0f options:UIViewAnimationOptionCurveEaseOut animations:animationBlock completion:completionBlock];
+        TOGridViewAnimateReordering(0, animationBlock, completionBlock);
     }
     else
     {
