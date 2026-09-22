@@ -18,6 +18,7 @@
 		3D9C8EB38597A8820F2DA651 /* ExampleInsertionTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 51EEEC1667812A87D210D8E3 /* ExampleInsertionTests.m */; };
 		403A1DCA3E6B2E3D88BE9CC8 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C340497EC4903F29BADC2B10 /* Foundation.framework */; };
 		875FFE24FBD6D6752F496EDF /* ExampleLayoutTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 50266F9B3AC3F34423B5F4E7 /* ExampleLayoutTests.m */; };
+		A32CC248D826F0C2BD073183 /* ExampleEditingTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 77A505BC061A5207BC73D491 /* ExampleEditingTests.m */; };
 		D63E7640C62DD91EE41DB99A /* ExampleUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAEF8EF58AE1B2B080DA1681 /* ExampleUITests.swift */; };
 		E3944960BBB4DFA2A9F3965D /* TOGridViewSceneDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 89A5B495A84065FA4926E047 /* TOGridViewSceneDelegate.m */; };
 		F1CD721F16A3DFC6003D5FB8 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F1CD721E16A3DFC6003D5FB8 /* UIKit.framework */; };
@@ -60,6 +61,7 @@
 		50266F9B3AC3F34423B5F4E7 /* ExampleLayoutTests.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = ExampleLayoutTests.m; sourceTree = "<group>"; };
 		51EEEC1667812A87D210D8E3 /* ExampleInsertionTests.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = ExampleInsertionTests.m; sourceTree = "<group>"; };
 		67D5FB5E2FE60C56CD31ADE5 /* TOGridViewSceneDelegate.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = TOGridViewSceneDelegate.h; sourceTree = "<group>"; };
+		77A505BC061A5207BC73D491 /* ExampleEditingTests.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = ExampleEditingTests.m; sourceTree = "<group>"; };
 		89A5B495A84065FA4926E047 /* TOGridViewSceneDelegate.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = TOGridViewSceneDelegate.m; sourceTree = "<group>"; };
 		C340497EC4903F29BADC2B10 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		CAEF8EF58AE1B2B080DA1681 /* ExampleUITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ExampleUITests.swift; sourceTree = "<group>"; };
@@ -176,6 +178,7 @@
 			children = (
 				50266F9B3AC3F34423B5F4E7 /* ExampleLayoutTests.m */,
 				51EEEC1667812A87D210D8E3 /* ExampleInsertionTests.m */,
+				77A505BC061A5207BC73D491 /* ExampleEditingTests.m */,
 			);
 			path = ExampleTests;
 			sourceTree = "<group>";
@@ -312,6 +315,7 @@
 			files = (
 				875FFE24FBD6D6752F496EDF /* ExampleLayoutTests.m in Sources */,
 				3D9C8EB38597A8820F2DA651 /* ExampleInsertionTests.m in Sources */,
+				A32CC248D826F0C2BD073183 /* ExampleEditingTests.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

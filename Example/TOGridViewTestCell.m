@@ -7,6 +7,7 @@
 @property (nonatomic, strong) UIView *trailingSeparator;
 @property (nonatomic, strong) UIImageView *selectionIndicator;
 @property (nonatomic, strong) UIImageView *reorderIndicator;
+@property (nonatomic) NSUInteger editingAnimationGeneration;
 @end
 
 @implementation TOGridViewTestCell
@@ -32,11 +33,13 @@
         _selectionIndicator = [UIImageView new];
         _selectionIndicator.contentMode = UIViewContentModeScaleAspectFit;
         _selectionIndicator.hidden = YES;
+        _selectionIndicator.alpha = 0;
         [self.contentView addSubview:_selectionIndicator];
         _reorderIndicator = [[UIImageView alloc] initWithImage:[UIImage systemImageNamed:@"line.3.horizontal"]];
         _reorderIndicator.contentMode = UIViewContentModeScaleAspectFit;
         _reorderIndicator.tintColor = UIColor.tertiaryLabelColor;
         _reorderIndicator.hidden = YES;
+        _reorderIndicator.alpha = 0;
         [self.contentView addSubview:_reorderIndicator];
 
         _bottomSeparator = [UIView new];
@@ -74,14 +77,53 @@
 
 - (void)setEditing:(BOOL)editing animated:(BOOL)animated
 {
+    BOOL changed = self.editing != editing;
+    [self layoutIfNeeded];
     [super setEditing:editing animated:animated];
-    self.selectionIndicator.hidden = !editing;
-    self.reorderIndicator.hidden = !editing;
     self.accessibilityHint = editing ? @"Double-tap to select. Touch and hold to reorder." : nil;
-    [self setNeedsLayout];
     [self updateSelectionAppearance];
-    if (animated)
-        [UIView animateWithDuration:0.2 animations:^{ [self layoutIfNeeded]; }];
+
+    if (!animated || !UIView.areAnimationsEnabled) {
+        self.editingAnimationGeneration++;
+        [UIView performWithoutAnimation:^{
+            for (UIView *indicator in @[self.selectionIndicator, self.reorderIndicator]) {
+                [indicator.layer removeAllAnimations];
+                indicator.alpha = editing ? 1 : 0;
+                indicator.hidden = !editing;
+            }
+            [self.textLabel.layer removeAllAnimations];
+            [self setNeedsLayout];
+            [self layoutIfNeeded];
+        }];
+        return;
+    }
+    if (!changed)
+        return;
+
+    NSUInteger generation = ++self.editingAnimationGeneration;
+    self.selectionIndicator.hidden = NO;
+    self.reorderIndicator.hidden = NO;
+    UIViewAnimationOptions options = UIViewAnimationOptionBeginFromCurrentState | UIViewAnimationOptionAllowUserInteraction;
+    // Opacity uses a linear fade independently of the content's spring movement.
+    [UIView animateWithDuration:0.2 delay:0 options:options | UIViewAnimationOptionCurveLinear animations:^{
+        self.selectionIndicator.alpha = editing ? 1 : 0;
+        self.reorderIndicator.alpha = editing ? 1 : 0;
+    } completion:^(BOOL finished) {
+        if (generation == self.editingAnimationGeneration && !self.editing) {
+            self.selectionIndicator.hidden = YES;
+            self.reorderIndicator.hidden = YES;
+        }
+    }];
+
+    [self setNeedsLayout];
+    void (^layout)(void) = ^{ [self layoutIfNeeded]; };
+    if (@available(iOS 17.0, *)) {
+        [UIView animateWithSpringDuration:0.35 bounce:0 initialSpringVelocity:0 delay:0
+                                 options:options animations:layout completion:nil];
+    } else {
+        [UIView animateWithDuration:0.35 delay:0 usingSpringWithDamping:1 initialSpringVelocity:0
+                            options:options animations:layout completion:nil];
+    }
 }
 
 - (void)setSelected:(BOOL)selected animated:(BOOL)animated
