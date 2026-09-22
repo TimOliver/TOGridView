@@ -26,6 +26,16 @@ xcodebuild -project TOGridViewExample.xcodeproj -scheme TOGridViewExample \
 
 Choose an available simulator name on your Mac. The screenshot above and the background below describe the original release.
 
+## Objective-C and Swift API
+
+The public headers declare nullability, typed collections, and a typed scroll-position enum. Swift receives optional offscreen cells and auxiliary views, `[TOGridViewCell]` for visible cells, and `[NSNumber]` for index arrays. Collection getters return empty arrays when there are no entries. The grid and its data-source/delegate callbacks belong on the main thread; the protocols also declare this requirement to Swift's concurrency checker.
+
+Keep your data source and delegate alive elsewhere: both references are zeroing-weak. `dequeueReusableCell` creates a default `TOGridViewCell` when no subclass has been registered. The original `dequeReusableCell` spelling remains supported, including subclass overrides. Header, footer, and background views can be removed by assigning `nil`. Overrides of annotated editing, selection, and highlighting methods must call `super`.
+
+For Swift, the custom initializer is `TOGridView(frame:cellClass:)` and scroll positions are `.top`, `.middle`, and `.bottom`. Existing Swift callers may need to adopt these imported names. Objective-C selectors remain available. The obsolete `nonRetinaRenderContexts` property is deprecated; UIKit controls snapshot resolution.
+
+The unit-test target includes a Swift 6 client that checks these imports and implements the callbacks with main-actor state.
+
 ## What exactly is this thing?
 
 TOGridView is a class I'm developing for implementation into my commercial iOS app [iComics](http://icomics.co/). Given the relatively

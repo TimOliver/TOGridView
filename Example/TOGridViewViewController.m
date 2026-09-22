@@ -149,7 +149,7 @@
 
 - (TOGridViewCell *)gridView:(TOGridView *)gridView cellForIndex:(NSInteger)index
 {
-    TOGridViewTestCell *cell = (TOGridViewTestCell *)[gridView dequeReusableCell];
+    TOGridViewTestCell *cell = (TOGridViewTestCell *)[gridView dequeueReusableCell];
     NSNumber *number = self.numbers[index];
     cell.textLabel.text = [NSString stringWithFormat:@"Cell %@", number];
     cell.accessibilityLabel = cell.textLabel.text;

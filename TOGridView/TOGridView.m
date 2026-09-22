@@ -48,7 +48,7 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
     }
 }
 
-@interface TOGridView () {
+@interface TOGridView () <CAAnimationDelegate> {
     
     /* Store what protocol methods the delegate/dataSource implement to help reduce overhead involved with checking that at runtime */
     struct {
@@ -84,18 +84,18 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
 @property (nonatomic, assign) Class cellClass;
 
 /* Stores for cells in use, and ones in standby */
-@property (nonatomic, strong) NSMutableArray *recycledCells;
-@property (nonatomic, strong) NSMutableDictionary *visibleCells;
+@property (nonatomic, strong) NSMutableArray<TOGridViewCell *> *recycledCells;
+@property (nonatomic, strong) NSMutableDictionary<NSNumber *, TOGridViewCell *> *visibleCells;
 
 /* A transparent viewport containing only cells, captured in one UIKit snapshot. */
 @property (nonatomic, strong) UIView *cellContainerView;
 
 /* Decoration views */
-@property (nonatomic, strong) NSMutableSet *recyledDecorationViews;
-@property (nonatomic, strong) NSMutableSet *visibleDecorationViews;
+@property (nonatomic, strong) NSMutableSet<UIView *> *recyledDecorationViews;
+@property (nonatomic, strong) NSMutableSet<UIView *> *visibleDecorationViews;
 
 /* An array of all cells, and whether they're selected or not */
-@property (nonatomic, strong) NSMutableSet *selectedCells;
+@property (nonatomic, strong) NSMutableSet<NSNumber *> *selectedCells;
 
 @property (nonatomic, assign) UIEdgeInsets cellPaddingInsets;  /* Padding of cells from edge of view */
 @property (nonatomic, assign) CGSize cellSize;  /*Size of each cell (This will become the tappable region) */
@@ -127,15 +127,15 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
 
 /* One completion and one generation per insertion, including batches with no visible new cells. */
 @property (nonatomic, copy) void (^insertionCompletionHandler)(void);
-@property (nonatomic, copy) NSArray *insertingCells;
+@property (nonatomic, copy) NSArray<TOGridViewCell *> *insertingCells;
 @property (nonatomic, assign) NSUInteger insertionGeneration;
 
 /* When rendering, completely can any calls to layoutSubviews in that interim */
-@property (nonatomic, assign) __block BOOL freezeLayoutSubviews;
+@property (nonatomic, assign) BOOL freezeLayoutSubviews;
 /* Temporarily halt laying out cells if we need to do something manually that causes iOS to call 'layoutSubViews' */
-@property (nonatomic, assign) __block BOOL pauseCellLayout;
+@property (nonatomic, assign) BOOL pauseCellLayout;
 /* Temoporaily halt performing a crossfade animation if we need to perform some manual layout */
-@property (nonatomic, assign) __block BOOL pauseCrossfadeAnimation;
+@property (nonatomic, assign) BOOL pauseCrossfadeAnimation;
 
 /* Properties of the scroll view used to track the current dragging state of a cell */
 @property (nonatomic, assign) CGFloat       dragScrollBias;         /* The amount the offset of the scrollview is incremented on each call of the timer*/
@@ -150,9 +150,9 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
 /* Timer link added to the main run-loop so we can animate the view scrolling */
 @property (nonatomic, strong) CADisplayLink *dragScrollTimerLink;
 
-- (void)enumerateCellDictionary:(NSDictionary *)cellDictionary withBlock:(void (^)(NSInteger index, TOGridViewCell *cell))block;
-- (void)updateVisibleCellKeysWithDictionary:(NSDictionary *)updatedCells;
-- (void)updateSelectedCellKeysWithDictionary:(NSDictionary *)updatedCells;
+- (void)enumerateCellDictionary:(NSDictionary<NSNumber *, TOGridViewCell *> *)cellDictionary withBlock:(void (^)(NSInteger index, TOGridViewCell *cell))block;
+- (void)updateVisibleCellKeysWithDictionary:(NSDictionary<NSNumber *, NSNumber *> *)updatedCells;
+- (void)updateSelectedCellKeysWithDictionary:(NSDictionary<NSNumber *, NSNumber *> *)updatedCells;
 - (void)resetCellMetrics;
 - (void)layoutCells;
 - (TOGridViewCell *)addCellAtIndex:(NSInteger)index dataSourceIndex:(NSInteger)dataSourceIndex;
@@ -179,9 +179,11 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
 
 @implementation TOGridView
 
+@dynamic delegate; // UIScrollView owns the weak delegate storage.
+
 #pragma mark -
 #pragma mark View Management
-- (id)initWithFrame:(CGRect)frame
+- (instancetype)initWithFrame:(CGRect)frame
 {
     if (self = [super initWithFrame:frame])
     {
@@ -208,6 +210,7 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
         self.dragScrollMaxVelocity      = 20;
         
         // Default state handling for touch events
+        self.numberOfCellsPerRow        = 1;
         self.draggingOverIndex          = -1;
         self.draggingCellIndex          = -1;
     }
@@ -215,7 +218,7 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
     return self;
 }
 
-- (id)initWithFrame:(CGRect)frame withCellClass:(Class)cellClass
+- (instancetype)initWithFrame:(CGRect)frame withCellClass:(Class)cellClass
 {
     if (self = [self initWithFrame:frame])
         [self registerCellClass:cellClass];
@@ -225,6 +228,8 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
 
 - (void)registerCellClass:(Class)cellClass
 {
+    if (cellClass != Nil && ![cellClass isSubclassOfClass:TOGridViewCell.class])
+        [NSException raise:NSInvalidArgumentException format:@"Cell classes must inherit from TOGridViewCell."];
     self.cellClass = cellClass;
 }
 
@@ -235,13 +240,6 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
     // Removal can happen while the owning controller and data source are deallocating.
     if (self.superview != nil)
         [self reloadGrid];
-}
-
-- (void)dealloc
-{
-    /* General clean-up */
-    self.recycledCells = nil;
-    self.visibleCells = nil;
 }
 
 #pragma mark -
@@ -262,32 +260,17 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
 
 - (void)resetCellMetrics
 {
-    /* Get the number of cells per row */
-    if (_gridViewFlags.delegateNumberOfCellsPerRow)
-        self.numberOfCellsPerRow = [self.delegate numberOfCellsPerRowForGridView:self];
-    
-    /* Get the number of cells from the data source */
-    if (_gridViewFlags.dataSourceNumberOfCells)
-        self.numberOfCells = [self.dataSource numberOfCellsInGridView:self];
-    
-    /* Get outer padding of cells */
-    if (_gridViewFlags.delegateBoundaryInsets)
-        self.cellPaddingInsets = [self.delegate boundaryInsetsForGridView:self];
-    
-    /* Grab the size of each cell */
-    if (_gridViewFlags.delegateSizeOfCells)
-        self.cellSize = [self.delegate sizeOfCellsForGridView:self];
-    
-    /* See if there is a custom height for each row of cells */
-    if (_gridViewFlags.delegateHeightOfRows)
-        self.rowHeight = [self.delegate heightOfRowsInGridView:self];
-    else
-        self.rowHeight = self.cellSize.height;
-    
-    /* See if there is a custom offset of cells from within each row */
-    if (_gridViewFlags.delegateVerticalOffsetOfCells)
-        self.offsetOfCellsInRow = [self.delegate verticalOffsetOfCellsInRowsInGridView:self];
-    
+    // Hold weak collaborators for this calculation. Missing optional metrics reset
+    // to their defaults when the delegate changes or has been released.
+    id<TOGridViewDelegate> delegate = self.delegate;
+    id<TOGridViewDataSource> dataSource = self.dataSource;
+    self.numberOfCellsPerRow = _gridViewFlags.delegateNumberOfCellsPerRow ? MAX(1, (NSInteger)[delegate numberOfCellsPerRowForGridView:self]) : 1;
+    self.numberOfCells = _gridViewFlags.dataSourceNumberOfCells ? [dataSource numberOfCellsInGridView:self] : 0;
+    self.cellPaddingInsets = _gridViewFlags.delegateBoundaryInsets ? [delegate boundaryInsetsForGridView:self] : UIEdgeInsetsZero;
+    self.cellSize = _gridViewFlags.delegateSizeOfCells ? [delegate sizeOfCellsForGridView:self] : CGSizeZero;
+    self.rowHeight = _gridViewFlags.delegateHeightOfRows ? [delegate heightOfRowsInGridView:self] : self.cellSize.height;
+    self.offsetOfCellsInRow = _gridViewFlags.delegateVerticalOffsetOfCells ? [delegate verticalOffsetOfCellsInRowsInGridView:self] : 0;
+
     /* Work out the spacing between cells */
     self.widthBetweenCells = self.numberOfCellsPerRow > 1 ? (NSInteger)floor(((CGRectGetWidth(self.bounds) - (self.cellPaddingInsets.left + self.cellPaddingInsets.right)) //Overall width of row
                                                - (_cellSize.width * self.numberOfCellsPerRow)) //minus the combined width of all cells
@@ -427,7 +410,7 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
 
 #pragma mark -
 #pragma mark Cell Management
-- (void)enumerateCellDictionary:(NSDictionary *)cellDictionary withBlock:(void (^)(NSInteger index, TOGridViewCell *))block
+- (void)enumerateCellDictionary:(NSDictionary<NSNumber *, TOGridViewCell *> *)cellDictionary withBlock:(void (^)(NSInteger index, TOGridViewCell *))block
 {
     if (block == nil)
         return;
@@ -437,10 +420,10 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
     }];
 }
 
-- (void)updateVisibleCellKeysWithDictionary:(NSDictionary *)updatedCells
+- (void)updateVisibleCellKeysWithDictionary:(NSDictionary<NSNumber *, NSNumber *> *)updatedCells
 {
     //Make a copy off the main list to work off (So we don't overwrite older values as we go)
-    NSDictionary *visibleCellsCopy = [self.visibleCells copy];
+    NSDictionary<NSNumber *, TOGridViewCell *> *visibleCellsCopy = [self.visibleCells copy];
     
     [updatedCells enumerateKeysAndObjectsUsingBlock:^(NSNumber *oldKey, NSNumber *newKey, BOOL *stop) {
         TOGridViewCell *cell = visibleCellsCopy[oldKey];
@@ -455,13 +438,13 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
     }];
 }
 
-- (void)updateSelectedCellKeysWithDictionary:(NSDictionary *)updatedCells
+- (void)updateSelectedCellKeysWithDictionary:(NSDictionary<NSNumber *, NSNumber *> *)updatedCells
 {
     if (self.selectedCells.count == 0)
         return;
     
     //Make a copy off the main list to work off (So we don't overwrite older values as we go)
-    NSSet *selectedCellsCopy = [self.selectedCells copy];
+    NSSet<NSNumber *> *selectedCellsCopy = [self.selectedCells copy];
     
     [updatedCells enumerateKeysAndObjectsUsingBlock:^(NSNumber *oldKey, NSNumber *newKey, BOOL *stop) {
         //skip if the cell isn't selected
@@ -520,6 +503,12 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
 /* layoutCells handles all of the recycling/dequeing of cells as the scrollview is scrolling */
 - (void)layoutCells
 {
+    // The owner may have gone away while the grid remains in the hierarchy.
+    if (self.dataSource == nil) {
+        self.numberOfCells = 0;
+        [self invalidateVisibleCells];
+        return;
+    }
     if (self.numberOfCells == 0)
         return;
     
@@ -527,7 +516,7 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
     NSRange visibleCellRange = [self rangeOfVisibleCellsInBounds:self.bounds];
     
     //go through each visible cell and see if they've moved beyond the visible range
-    NSSet *cellsToRecyle = [self.visibleCells keysOfEntriesWithOptions:0 passingTest:^BOOL(NSNumber *key, TOGridViewCell *cell, BOOL *stop) {
+    NSSet<NSNumber *> *cellsToRecyle = [self.visibleCells keysOfEntriesWithOptions:0 passingTest:^BOOL(NSNumber *key, TOGridViewCell *cell, BOOL *stop) {
         NSInteger index = key.integerValue;
         
         if (NSLocationInRange(index, visibleCellRange))
@@ -581,11 +570,12 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
 /* Share the display lifecycle between scrolling and insertion. */
 - (TOGridViewCell *)addCellAtIndex:(NSInteger)index dataSourceIndex:(NSInteger)dataSourceIndex
 {
+    id<TOGridViewDataSource> dataSource = self.dataSource;
     BOOL animationsEnabled = [UIView areAnimationsEnabled];
     [UIView setAnimationsEnabled:NO];
     @try {
         //Get the cell with its content setup from the dataSource
-        TOGridViewCell *cell = [self.dataSource gridView:self cellForIndex:dataSourceIndex];
+        TOGridViewCell *cell = [dataSource gridView:self cellForIndex:dataSourceIndex];
         if (cell == nil)
             [NSException raise:NSInternalInconsistencyException format:@"The datasource may not return a nil cell object"];
 
@@ -603,13 +593,13 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
         //see if we're editing and the current cell is draggable
         cell.draggable = NO;
         if (_gridViewFlags.dataSourceCanMoveCell) {
-            if ([self.dataSource gridView:self canMoveCellAtIndex:index])
+            if ([dataSource gridView:self canMoveCellAtIndex:index])
                 cell.draggable = YES;
         }
         
         //set the cell editing state
         if (_gridViewFlags.dataSourceCanEditCell && self.editing)
-            cell.editing = [self.dataSource gridView:self canEditCellAtIndex:index];
+            cell.editing = [dataSource gridView:self canEditCellAtIndex:index];
         else
             cell.editing = NO;
         
@@ -853,9 +843,9 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
     NSInteger offset = -(self.draggingOverIndex - currentlyDraggedOverIndex);
     
     //sort the cell keys into ascending order
-    NSArray *cellIndices = [self.visibleCells.allKeys sortedArrayUsingSelector:@selector(compare:)];
+    NSArray<NSNumber *> *cellIndices = [self.visibleCells.allKeys sortedArrayUsingSelector:@selector(compare:)];
     
-    NSMutableDictionary *newIndicies = [NSMutableDictionary dictionary];
+    NSMutableDictionary<NSNumber *, NSNumber *> *newIndicies = [NSMutableDictionary dictionary];
     for (NSNumber *cellIndex in cellIndices) {
         NSInteger index = cellIndex.integerValue;
         TOGridViewCell *cell = self.visibleCells[cellIndex];
@@ -956,6 +946,12 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
 #pragma mark Cell/Decoration Recycling
 
 /* Dequeue a recycled cell for reuse */
+- (TOGridViewCell *)dequeueReusableCell
+{
+    // Keep dispatching through the original selector for existing subclasses.
+    return [self dequeReusableCell];
+}
+
 - (TOGridViewCell *)dequeReusableCell
 {
     TOGridViewCell *cell = nil;
@@ -969,11 +965,11 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
     }
     
     //If there are no cells available, create a new one and set it up
-    if (self.cellClass) {
-        cell = [[self.cellClass alloc] initWithFrame:CGRectMake(0, 0, self.cellSize.width, self.cellSize.height)];
-        cell.frame = CGRectMake(0, 0, self.cellSize.width, self.cellSize.height);
-        [cell setHighlighted:NO animated:NO];
-    }
+    Class cellClass = self.cellClass ?: TOGridViewCell.class;
+    cell = [[cellClass alloc] initWithFrame:(CGRect){CGPointZero, self.cellSize}];
+    if (cell == nil)
+        [NSException raise:NSInternalInconsistencyException format:@"The registered cell class must return a cell from initWithFrame:."];
+    [cell setHighlighted:NO animated:NO];
     
     return cell;
 }
@@ -995,12 +991,12 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
     return [self insertCellsAtIndices:@[@(index)] animated:animated completionHandler:completionHandler];
 }
 
-- (BOOL)insertCellsAtIndices:(NSArray *)indices animated:(BOOL)animated
+- (BOOL)insertCellsAtIndices:(NSArray<NSNumber *> *)indices animated:(BOOL)animated
 {
     return [self insertCellsAtIndices:indices animated:animated completionHandler:nil];
 }
 
-- (BOOL)insertCellsAtIndices:(NSArray *)indices animated:(BOOL)animated completionHandler:(void (^)(void))completionHandler
+- (BOOL)insertCellsAtIndices:(NSArray<NSNumber *> *)indices animated:(BOOL)animated completionHandler:(void (^)(void))completionHandler
 {
     if (indices.count == 0) {
         if (completionHandler)
@@ -1038,13 +1034,13 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
     };
 
     // Build new stores atomically, so adjacent indices cannot overwrite each other.
-    NSMutableDictionary *remappedCells = [NSMutableDictionary dictionary];
+    NSMutableDictionary<NSNumber *, TOGridViewCell *> *remappedCells = [NSMutableDictionary dictionary];
     [self enumerateCellDictionary:self.visibleCells withBlock:^(NSInteger index, TOGridViewCell *cell) {
         remappedCells[@(newIndexForOldIndex(index))] = cell;
     }];
     self.visibleCells = remappedCells;
     if (self.selectedCells) {
-        NSMutableSet *remappedSelection = [NSMutableSet set];
+        NSMutableSet<NSNumber *> *remappedSelection = [NSMutableSet set];
         for (NSNumber *index in self.selectedCells)
             [remappedSelection addObject:@(newIndexForOldIndex(index.integerValue))];
         self.selectedCells = remappedSelection;
@@ -1052,7 +1048,7 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
 
     self.contentSize = [self contentSizeOfScrollView];
     NSRange visibleRange = self.visibleCellRange;
-    NSMutableArray *newCells = [NSMutableArray array];
+    NSMutableArray<TOGridViewCell *> *newCells = [NSMutableArray array];
     if (animated) {
         // The amount of view work is bounded by the viewport, not the batch size.
         for (NSUInteger i = 0; i < visibleRange.length; i++) {
@@ -1098,7 +1094,7 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
     };
     // Match deletion's cascade: each row wrap adds a small delay, while cells
     // moving within the same row travel together. Unchanged cells add no delay.
-    NSMutableArray *movingIndices = [NSMutableArray array];
+    NSMutableArray<NSNumber *> *movingIndices = [NSMutableArray array];
     for (NSNumber *key in [[self.visibleCells allKeys] sortedArrayUsingSelector:@selector(compare:)]) {
         TOGridViewCell *cell = self.visibleCells[key];
         if (!CGRectEqualToRect(cell.frame, [self rectOfCellAtIndex:key.integerValue]))
@@ -1179,7 +1175,7 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
     if (self.insertingCells == nil)
         return;
     self.insertionGeneration++;
-    NSArray *cells = self.insertingCells;
+    NSArray<TOGridViewCell *> *cells = self.insertingCells;
     void (^completion)(void) = self.insertionCompletionHandler;
     self.insertingCells = nil;
     self.insertionCompletionHandler = nil;
@@ -1216,12 +1212,12 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
     return [self deleteCellsAtIndices:@[@(index)] animated:animated completionHandler:completionHandler];
 }
 
-- (BOOL)deleteCellsAtIndices:(NSArray *)indices animated:(BOOL)animated
+- (BOOL)deleteCellsAtIndices:(NSArray<NSNumber *> *)indices animated:(BOOL)animated
 {
     return [self deleteCellsAtIndices:indices animated:animated completionHandler:nil];
 }
 
-- (BOOL)deleteCellsAtIndices:(NSArray *)indices animated:(BOOL)animated completionHandler:(void (^)(void))completionHandler
+- (BOOL)deleteCellsAtIndices:(NSArray<NSNumber *> *)indices animated:(BOOL)animated completionHandler:(void (^)(void))completionHandler
 {
     if ([indices count] == 0)
         return YES;
@@ -1250,7 +1246,7 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
     self.numberOfCells = newNumberOfCells;
     
     //go through each cell and work out which cells-to-delete are visible.
-    NSMutableArray *visibleCellsToDelete = [NSMutableArray array];
+    NSMutableArray<TOGridViewCell *> *visibleCellsToDelete = [NSMutableArray array];
     for (NSNumber *number in indices)
     {
         NSInteger deleteIndex = number.integerValue;
@@ -1277,7 +1273,7 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
     }
     
     //work out what the new index for each visible cell will be after the targeted cells have been deleted
-    NSMutableDictionary *updatedCellKeys = [NSMutableDictionary dictionary];
+    NSMutableDictionary<NSNumber *, NSNumber *> *updatedCellKeys = [NSMutableDictionary dictionary];
     [self enumerateCellDictionary:self.visibleCells withBlock:^(NSInteger index, TOGridViewCell *cell) {
         NSInteger offset = 0;
         for (NSNumber *number in indices)
@@ -1385,7 +1381,7 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
             }
             
             //sort the visible cells into their respective order so we can sort it in the right order
-            NSArray *sortedVisibleCellIndices = [[self.visibleCells allKeys] sortedArrayUsingSelector:@selector(compare:)];
+            NSArray<NSNumber *> *sortedVisibleCellIndices = [[self.visibleCells allKeys] sortedArrayUsingSelector:@selector(compare:)];
             
             void (^completionBlock)(void) = ^{
                 //reset all of the cells
@@ -1521,8 +1517,9 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
     return [self reloadCellsAtIndices:@[@(index)]];
 }
 
-- (BOOL)reloadCellsAtIndices:(NSArray *)indices
+- (BOOL)reloadCellsAtIndices:(NSArray<NSNumber *> *)indices
 {
+    id<TOGridViewDataSource> dataSource = self.dataSource;
     if ([indices count] == 0)
         return YES;
 
@@ -1543,17 +1540,17 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
         [self.recycledCells addObject:cell];
         cell = nil;
         
-        cell = [self.dataSource gridView:self cellForIndex:cellIndex];
+        cell = [dataSource gridView:self cellForIndex:cellIndex];
         cell.frame = frame;
         
         cell.draggable = NO;
         if (_gridViewFlags.dataSourceCanMoveCell) {
-            if ([self.dataSource gridView:self canMoveCellAtIndex:cellIndex])
+            if ([dataSource gridView:self canMoveCellAtIndex:cellIndex])
                 cell.draggable = YES;
         }
         
         if (_gridViewFlags.dataSourceCanEditCell && self.editing)
-            cell.editing = [self.dataSource gridView:self canEditCellAtIndex:cellIndex];
+            cell.editing = [dataSource gridView:self canEditCellAtIndex:cellIndex];
         else
             cell.editing = NO;
         
@@ -1606,9 +1603,9 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
         [self stopAnimatingScrollViewDragging];
 }
 
-- (NSArray *)indicesOfSelectedCells
+- (NSArray<NSNumber *> *)indicesOfSelectedCells
 {
-    return [[self.selectedCells allObjects] sortedArrayUsingSelector:@selector(compare:)];
+    return [[self.selectedCells allObjects] sortedArrayUsingSelector:@selector(compare:)] ?: @[];
 }
 
 - (BOOL)selectCellAtIndex:(NSInteger)index animated:(BOOL)animated
@@ -1616,7 +1613,7 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
     return [self selectCellsAtIndices:@[@(index)] animated:animated];
 }
 
-- (BOOL)selectCellsAtIndices:(NSArray *)indices animated:(BOOL)animated
+- (BOOL)selectCellsAtIndices:(NSArray<NSNumber *> *)indices animated:(BOOL)animated
 {
     if (self.allowsSelectionDuringEditing == NO)
         return YES;
@@ -1647,7 +1644,7 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
     return [self deselectCellsAtIndices:@[@(index)]];
 }
 
-- (BOOL)deselectCellsAtIndices:(NSArray *)indices
+- (BOOL)deselectCellsAtIndices:(NSArray<NSNumber *> *)indices
 {
     for (NSNumber *index in indices)
     {
@@ -1688,7 +1685,7 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
 }
 
 /* touchesBagan is initially called when we first touch this view on the screen. There is no delay. */
-- (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event
+- (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event
 {
     //reset this as needed
     self.cancelTouches = NO;
@@ -1784,7 +1781,7 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
 }
 
 /* touchesMoved is called when we start panning around the view without releasing our finger */
-- (void)touchesMoved:(NSSet *)touches withEvent:(UIEvent *)event
+- (void)touchesMoved:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event
 {
     UITouch *touch = [touches anyObject];
     
@@ -1847,8 +1844,10 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
 }
 
 /* touchesEnded is called if the user releases their finger from the device without panning the scroll view (eg a discrete tap and release) */
-- (void)touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event
+- (void)touchesEnded:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event
 {
+    id<TOGridViewDelegate> delegate = self.delegate;
+    id<TOGridViewDataSource> dataSource = self.dataSource;
     if (self.cancelTouches)
         return;
     
@@ -1868,14 +1867,14 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
         NSInteger index = [self indexOfVisibleCell:cell];
         
         if (_gridViewFlags.dataSourceCanHighlightCell) {
-            if ([self.dataSource gridView:self canHighlightCellAtIndex:index])
+            if ([dataSource gridView:self canHighlightCellAtIndex:index])
                 [cell setHighlighted:YES animated:NO];
         }
         else
             [cell setHighlighted:YES animated:NO];
         
         if (cell && _gridViewFlags.delegateDidTapCell)
-            [self.delegate gridView:self didTapCellAtIndex:index];
+            [delegate gridView:self didTapCellAtIndex:index];
     }
     else //if we WERE editing
     {
@@ -1888,7 +1887,7 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
             [cell setHighlighted:NO animated:NO];
             
             if (_gridViewFlags.dataSourceCanEditCell) {
-                if ([self.dataSource gridView:self canEditCellAtIndex:index] == NO)
+                if ([dataSource gridView:self canEditCellAtIndex:index] == NO)
                     return;
             }
             
@@ -1902,7 +1901,7 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
                     [self.selectedCells addObject:cellIndexNumber];
                     
                     if (_gridViewFlags.delegateDidSelectCell)
-                        [self.delegate gridView:self didSelectCellAtIndex:index];
+                        [delegate gridView:self didSelectCellAtIndex:index];
                 }
                 else
                 {
@@ -1910,19 +1909,19 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
                     [self.selectedCells removeObject:cellIndexNumber];
                     
                     if (_gridViewFlags.delegateDidDeselectCell)
-                        [self.delegate gridView:self didDeselectCellAtIndex:index];
+                        [delegate gridView:self didDeselectCellAtIndex:index];
                 }
             }
             else {
                 if (_gridViewFlags.dataSourceCanHighlightCell) {
-                    if ([self.dataSource gridView:self canHighlightCellAtIndex:index])
+                    if ([dataSource gridView:self canHighlightCellAtIndex:index])
                         [cell setHighlighted:YES animated:NO];
                 }
                 else
                     [cell setHighlighted:YES animated:NO];
                 
                 if (_gridViewFlags.delegateDidTapCell)
-                    [self.delegate gridView:self didTapCellAtIndex:index];
+                    [delegate gridView:self didTapCellAtIndex:index];
             }
         }
         else //if there IS a cell being dragged about, re-insert it back into the view layout
@@ -1931,7 +1930,7 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
             NSInteger newIndex      = self.draggingOverIndex;
             
             if (_gridViewFlags.delegateDidMoveCell)
-                [self.delegate gridView:self didMoveCellAtIndex:previousIndex toIndex:newIndex];
+                [delegate gridView:self didMoveCellAtIndex:previousIndex toIndex:newIndex];
             
             //re-associate the cell with its new index
             if ([self.visibleCells[@(self.draggingCellIndex)] isEqual:self.draggingCell])
@@ -1986,7 +1985,7 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
 
 /* touchesCancelled is usually called if the user tapped down, but then started scrolling the UIScrollView. (Or potentially, if the user rotates the device) */
 /* This will relinquish any state control we had on any cells. */
-- (void)touchesCancelled:(NSSet *)touches withEvent:(UIEvent *)event
+- (void)touchesCancelled:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event
 {
     //The cell that was under our finger at the time
     TOGridViewCell *cell = [self cellInTouch:[touches anyObject]];
@@ -2044,7 +2043,7 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
     CGFloat destAlpha   = 0.75f;
     
     //Set the cell's raserization scale for the upcoming bitmap cache
-    cell.layer.rasterizationScale = [[UIScreen mainScreen] scale];
+    cell.layer.rasterizationScale = MAX(self.traitCollection.displayScale, 1.0);
     
     if (animated)
     {
@@ -2114,7 +2113,7 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
     if (self.dragScrollTimerLink == nil)
         return;
     
-    [self.dragScrollTimerLink removeFromRunLoop:[NSRunLoop mainRunLoop] forMode:NSDefaultRunLoopMode];
+    [self.dragScrollTimerLink invalidate];
     self.dragScrollTimerLink = nil;
 }
 
@@ -2128,19 +2127,19 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
     [super setDelegate:delegate];
     
     //Update the flags with the state of the new delegate
-    _gridViewFlags.delegateDecorationView        = [self.delegate respondsToSelector:@selector(gridView:decorationViewForRowWithIndex:)];
-    _gridViewFlags.delegateBoundaryInsets        = [self.delegate respondsToSelector:@selector(boundaryInsetsForGridView:)];
-    _gridViewFlags.delegateNumberOfCellsPerRow   = [self.delegate respondsToSelector:@selector(numberOfCellsPerRowForGridView:)];
-    _gridViewFlags.delegateSizeOfCells           = [self.delegate respondsToSelector:@selector(sizeOfCellsForGridView:)];
-    _gridViewFlags.delegateHeightOfRows          = [self.delegate respondsToSelector:@selector(heightOfRowsInGridView:)];
-    _gridViewFlags.delegateDidLongTapCell        = [self.delegate respondsToSelector:@selector(gridView:didLongTapCellAtIndex:)];
-    _gridViewFlags.delegateDidTapCell            = [self.delegate respondsToSelector:@selector(gridView:didTapCellAtIndex:)];
-    _gridViewFlags.delegateDidMoveCell           = [self.delegate respondsToSelector:@selector(gridView:didMoveCellAtIndex:toIndex:)];
-    _gridViewFlags.delegateVerticalOffsetOfCells = [self.delegate respondsToSelector:@selector(verticalOffsetOfCellsInRowsInGridView:)];
-    _gridViewFlags.delegateWillDisplayCell       = [self.delegate respondsToSelector:@selector(gridView:willDisplayCell:atIndex:)];
-    _gridViewFlags.delegateDidEndDisplayingCell  = [self.delegate respondsToSelector:@selector(gridView:didEndDisplayingCell:atIndex:)];
-    _gridViewFlags.delegateDidSelectCell         = [self.delegate respondsToSelector:@selector(gridView:didSelectCellAtIndex:)];
-    _gridViewFlags.delegateDidDeselectCell       = [self.delegate respondsToSelector:@selector(gridView:didDeselectCellAtIndex:)];
+    _gridViewFlags.delegateDecorationView        = [delegate respondsToSelector:@selector(gridView:decorationViewForRowWithIndex:)];
+    _gridViewFlags.delegateBoundaryInsets        = [delegate respondsToSelector:@selector(boundaryInsetsForGridView:)];
+    _gridViewFlags.delegateNumberOfCellsPerRow   = [delegate respondsToSelector:@selector(numberOfCellsPerRowForGridView:)];
+    _gridViewFlags.delegateSizeOfCells           = [delegate respondsToSelector:@selector(sizeOfCellsForGridView:)];
+    _gridViewFlags.delegateHeightOfRows          = [delegate respondsToSelector:@selector(heightOfRowsInGridView:)];
+    _gridViewFlags.delegateDidLongTapCell        = [delegate respondsToSelector:@selector(gridView:didLongTapCellAtIndex:)];
+    _gridViewFlags.delegateDidTapCell            = [delegate respondsToSelector:@selector(gridView:didTapCellAtIndex:)];
+    _gridViewFlags.delegateDidMoveCell           = [delegate respondsToSelector:@selector(gridView:didMoveCellAtIndex:toIndex:)];
+    _gridViewFlags.delegateVerticalOffsetOfCells = [delegate respondsToSelector:@selector(verticalOffsetOfCellsInRowsInGridView:)];
+    _gridViewFlags.delegateWillDisplayCell       = [delegate respondsToSelector:@selector(gridView:willDisplayCell:atIndex:)];
+    _gridViewFlags.delegateDidEndDisplayingCell  = [delegate respondsToSelector:@selector(gridView:didEndDisplayingCell:atIndex:)];
+    _gridViewFlags.delegateDidSelectCell         = [delegate respondsToSelector:@selector(gridView:didSelectCellAtIndex:)];
+    _gridViewFlags.delegateDidDeselectCell       = [delegate respondsToSelector:@selector(gridView:didDeselectCellAtIndex:)];
 }
 
 - (void)setDataSource:(id<TOGridViewDataSource>)dataSource
@@ -2151,12 +2150,12 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
     _dataSource = dataSource;
     
     //Update the flags with the current state of the data source
-    _gridViewFlags.dataSourceCellForIndex       = [_dataSource respondsToSelector:@selector(gridView:cellForIndex:)];
-    _gridViewFlags.dataSourceNumberOfCells      = [_dataSource respondsToSelector:@selector(numberOfCellsInGridView:)];
-    _gridViewFlags.dataSourceCanEditCell        = [_dataSource respondsToSelector:@selector(gridView:canEditCellAtIndex:)];
-    _gridViewFlags.dataSourceCanMoveCell        = [_dataSource respondsToSelector:@selector(gridView:canMoveCellAtIndex:)];
-    _gridViewFlags.dataSourceCanHighlightCell   = [_dataSource respondsToSelector:@selector(gridView:canHighlightCellAtIndex:)];
-    _gridViewFlags.dataSourceCanLongTapCell     = [_dataSource respondsToSelector:@selector(gridView:canLongTapCellAtIndex:)];
+    _gridViewFlags.dataSourceCellForIndex       = [dataSource respondsToSelector:@selector(gridView:cellForIndex:)];
+    _gridViewFlags.dataSourceNumberOfCells      = [dataSource respondsToSelector:@selector(numberOfCellsInGridView:)];
+    _gridViewFlags.dataSourceCanEditCell        = [dataSource respondsToSelector:@selector(gridView:canEditCellAtIndex:)];
+    _gridViewFlags.dataSourceCanMoveCell        = [dataSource respondsToSelector:@selector(gridView:canMoveCellAtIndex:)];
+    _gridViewFlags.dataSourceCanHighlightCell   = [dataSource respondsToSelector:@selector(gridView:canHighlightCellAtIndex:)];
+    _gridViewFlags.dataSourceCanLongTapCell     = [dataSource respondsToSelector:@selector(gridView:canLongTapCellAtIndex:)];
 }
 
 - (void)setHeaderView:(UIView *)headerView
@@ -2174,7 +2173,8 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
     self.offsetFromHeader = CGRectGetHeight(headerView.bounds);
     
     //add the view to the scroll view
-    [self addSubview:self.headerView];
+    if (headerView != nil)
+        [self addSubview:headerView];
     
     //reset the size of the scroll view to account for this new header views
     self.contentSize = [self contentSizeOfScrollView];
@@ -2196,7 +2196,8 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
     self.footerView.autoresizingMask = UIViewAutoresizingFlexibleWidth;
     
     //add the view to the scroll view
-    [self addSubview:self.footerView];
+    if (footerView != nil)
+        [self addSubview:footerView];
     
     //reset the size of the scroll view to account for this new header views
     self.contentSize = [self contentSizeOfScrollView];
@@ -2218,7 +2219,8 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
     self.backgroundView.frame = self.bounds;
     
     //make sure to insert it BELOW any visible cells
-    [self insertSubview:self.backgroundView atIndex:0];
+    if (backgroundView != nil)
+        [self insertSubview:backgroundView atIndex:0];
 }
 
 - (void)setFrame:(CGRect)frame
@@ -2282,7 +2284,7 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
         [self enumerateCellDictionary:self.visibleCells withBlock:^(NSInteger index, TOGridViewCell *cell) {
             [cell setSelected:NO animated:NO];
             
-            if (_gridViewFlags.dataSourceCanEditCell && [self.dataSource gridView:self canEditCellAtIndex:index])
+            if (self->_gridViewFlags.dataSourceCanEditCell && [self.dataSource gridView:self canEditCellAtIndex:index])
                 [cell setEditing:YES animated:animated];
         }];
     }
@@ -2293,9 +2295,9 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
     return [self rangeOfVisibleCellsInBounds:self.bounds];
 }
 
-- (NSArray *)visibleCellViews
+- (NSArray<TOGridViewCell *> *)visibleCellViews
 {
-    return [self.visibleCells allValues];
+    return [self.visibleCells allValues] ?: @[];
 }
 
 - (CABasicAnimation *)boundsChangeAnimation

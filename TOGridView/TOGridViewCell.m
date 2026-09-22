@@ -23,7 +23,6 @@
 #import "TOGridViewCell.h"
 #import "TOGridView.h"
 #import <QuartzCore/QuartzCore.h>
-#import <UIKit/UIGestureRecognizerSubclass.h>
 
 #define ANIMATION_TIME 0.7f
 
@@ -36,7 +35,7 @@
 
 @implementation TOGridViewCell
 
-- (id)initWithFrame:(CGRect)frame
+- (instancetype)initWithFrame:(CGRect)frame
 {    
     if (self = [super initWithFrame:frame]) {
         //Set up default state for this cell view
@@ -66,7 +65,7 @@
 /* Called when a cell is tapped and/or subsequently released to add a highlight effect. */
 - (void)setHighlighted:(BOOL)highlighted animated:(BOOL)animated
 {
-    if (highlighted == _highlighted)
+    if (highlighted == self.highlighted)
         return;
     
     _highlighted = highlighted;
@@ -96,7 +95,7 @@
         //set the content view to the oppsoite state so we can transition to it
         for (id subview in self.subviews) {
             if ([subview respondsToSelector:@selector(setHighlighted:)])
-                [subview setHighlighted:!_highlighted];
+                [subview setHighlighted:!self.highlighted];
         }
         
         /* Animate the highlighted background to crossfade */
@@ -104,24 +103,24 @@
             self.highlightedBackgroundView.alpha = alpha;
         }
         completion:^(BOOL finished) {
-            if (_highlighted == NO) {
+            if (self.highlighted == NO) {
                 self.highlightedBackgroundView.hidden = YES;
                 [self setNeedsTransparentContent:YES];
             }
         }];
 
         //set the content view to unhighlighted about halfway through the animation
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (ANIMATION_TIME*0.5f) * NSEC_PER_SEC), dispatch_get_current_queue(), ^{
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (ANIMATION_TIME*0.5f) * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
             for (id subview in self.subviews) {
                 if ([subview respondsToSelector:@selector(setHighlighted:)])
-                    [subview setHighlighted:_highlighted];
+                    [subview setHighlighted:self.highlighted];
             }
         });
     }
     else {
         self.highlightedBackgroundView.alpha = 1.0f;
         
-        if (_highlighted) {
+        if (self.highlighted) {
             self.highlightedBackgroundView.hidden = NO;
             [self setNeedsTransparentContent:YES];
         }
@@ -132,7 +131,7 @@
         
         for (id subview in self.subviews) {
             if ([subview respondsToSelector:@selector(setHighlighted:)])
-                [subview setHighlighted:_highlighted];
+                [subview setHighlighted:self.highlighted];
         }
     }
 }
@@ -161,7 +160,7 @@
         CGFloat alpha;
         self.selectedBackgroundView.hidden = NO;
         
-        if (_selected) {
+        if (self.selected) {
             self.selectedBackgroundView.alpha = 0.0f;
             alpha = 1.0f;
         }
@@ -175,7 +174,7 @@
         //set the content view to the oppsoite state so we can transition to it
         for (id subview in self.subviews) {
             if ([subview respondsToSelector:@selector(setSelected:)])
-                [subview setSelected:!_selected];
+                [subview setSelected:!self.selected];
         }
         
         /* Animate the highlighted background to crossfade */
@@ -184,17 +183,17 @@
         }
         completion:^(BOOL finished)
         {
-             if (_selected == NO) {
+             if (self.selected == NO) {
                  self.selectedBackgroundView.hidden = YES;
                  [self setNeedsTransparentContent:YES];
              }
         }];
         
         //set the content view to unhighlighted about halfway through the animation
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (ANIMATION_TIME*0.5f) * NSEC_PER_SEC), dispatch_get_current_queue(), ^{
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (ANIMATION_TIME*0.5f) * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
             for (id subview in self.subviews) {
                 if ([subview respondsToSelector:@selector(setSelected:)])
-                    [subview setSelected:_selected];
+                    [subview setSelected:self.selected];
             }
         });
     }
@@ -202,7 +201,7 @@
     {
         self.selectedBackgroundView.alpha = 1.0f;
         
-        if (_selected) {
+        if (self.selected) {
             self.selectedBackgroundView.hidden = NO;
             [self setNeedsTransparentContent:YES];
         }
@@ -213,7 +212,7 @@
         
         for (id subview in self.subviews) {
             if ([subview respondsToSelector:@selector(setSelected:)])
-                [subview setSelected:_selected];
+                [subview setSelected:self.selected];
         }
     }
 }
@@ -246,10 +245,12 @@
     
     [self.backgroundView removeFromSuperview];
     _backgroundView = backgroundView;
+    if (backgroundView == nil)
+        return;
     self.backgroundView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     self.backgroundView.frame = self.bounds;
     
-    [self insertSubview:self.backgroundView atIndex:0];
+    [self insertSubview:backgroundView atIndex:0];
 }
 
 - (void)setHighlightedBackgroundView:(UIView *)highlightedBackgroundView
@@ -259,13 +260,16 @@
     
     [self.highlightedBackgroundView removeFromSuperview];
     _highlightedBackgroundView = highlightedBackgroundView;
+    if (highlightedBackgroundView == nil)
+        return;
     self.highlightedBackgroundView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     self.highlightedBackgroundView.frame = self.bounds;
     
-    if (self.backgroundView)
-        [self insertSubview:self.highlightedBackgroundView aboveSubview:self.backgroundView];
+    UIView *background = self.backgroundView;
+    if (background != nil)
+        [self insertSubview:highlightedBackgroundView aboveSubview:background];
     else
-        [self insertSubview:self.highlightedBackgroundView atIndex:0];
+        [self insertSubview:highlightedBackgroundView atIndex:0];
     
     self.highlightedBackgroundView.hidden = YES;
 }
@@ -277,13 +281,16 @@
     
     [self.selectedBackgroundView removeFromSuperview];
     _selectedBackgroundView = selectedBackgroundView;
+    if (selectedBackgroundView == nil)
+        return;
     self.selectedBackgroundView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     self.selectedBackgroundView.frame = self.bounds;
     
-    if (self.backgroundView)
-        [self insertSubview:self.selectedBackgroundView aboveSubview:self.backgroundView];
+    UIView *background = self.backgroundView;
+    if (background != nil)
+        [self insertSubview:selectedBackgroundView aboveSubview:background];
     else
-        [self insertSubview:self.selectedBackgroundView atIndex:0];
+        [self insertSubview:selectedBackgroundView atIndex:0];
     
     self.selectedBackgroundView.hidden = YES;
 }

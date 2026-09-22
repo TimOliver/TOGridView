@@ -22,16 +22,17 @@
 
 #import <UIKit/UIKit.h>
 
-@class TOGridView;
+NS_ASSUME_NONNULL_BEGIN
 
 @interface TOGridViewCell : UIView
 
+/* State overrides must call super so the grid can continue to read the current state. */
 /* Set the state of the cell to editing. Will be called on all visible cells when the grid view enters edit mode */
-- (void)setEditing: (BOOL)editing animated: (BOOL)animated;
+- (void)setEditing: (BOOL)editing animated: (BOOL)animated NS_REQUIRES_SUPER;
 /* Highlighted occurs when the user taps the view in non-edit mode */
-- (void)setHighlighted: (BOOL)highlighted animated:(BOOL)animated;
+- (void)setHighlighted: (BOOL)highlighted animated:(BOOL)animated NS_REQUIRES_SUPER;
 /* Selected occurs when a cell is tapped in edit mode. Multiple cells may be selected at once. */
-- (void)setSelected: (BOOL)selected animated:(BOOL)animated;
+- (void)setSelected: (BOOL)selected animated:(BOOL)animated NS_REQUIRES_SUPER;
 /* Sent when the view needs to transition into its dragging state */
 - (void)setDragging: (BOOL)dragging animated: (BOOL)animated;
 
@@ -49,11 +50,13 @@
 @property (nonatomic, assign) BOOL draggable;
 
 /* Views for various states that are placed in the background */
-@property (nonatomic, strong)   UIView *backgroundView;
-@property (nonatomic, strong)   UIView *highlightedBackgroundView;
-@property (nonatomic, strong)   UIView *selectedBackgroundView;
+@property (nonatomic, strong, nullable) UIView *backgroundView;
+@property (nonatomic, strong, nullable) UIView *highlightedBackgroundView;
+@property (nonatomic, strong, nullable) UIView *selectedBackgroundView;
 
 /* The primary view to place dynamic content */
-@property (nonatomic, readonly) UIView *contentView;
+@property (nonatomic, strong, readonly) UIView *contentView;
 
 @end
+
+NS_ASSUME_NONNULL_END
