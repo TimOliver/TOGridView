@@ -29,6 +29,7 @@
 		FBEC50C24EB34C8662129DF9 /* GridScrollingTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 6908F16448BC404C22254BDD /* GridScrollingTests.m */; };
 		67B70EF5F9D9695BF50502BC /* GridPrefetchTests.m in Sources */ = {isa = PBXBuildFile; fileRef = B4D54C95184674893A83FE51 /* GridPrefetchTests.m */; };
 		44E22ED55C22426CB25DE790 /* GridReuseTests.m in Sources */ = {isa = PBXBuildFile; fileRef = A2B3AB6D7723E60B23A0545B /* GridReuseTests.m */; };
+		06B185E60F53FA5E3B49E238 /* GridCellPreparationTests.m in Sources */ = {isa = PBXBuildFile; fileRef = FC8D897C2D0319AC0A4E7910 /* GridCellPreparationTests.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -81,6 +82,7 @@
 		F1CD722216A3DFC6003D5FB8 /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
 		B4D54C95184674893A83FE51 /* GridPrefetchTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GridPrefetchTests.m; sourceTree = "<group>"; };
 		A2B3AB6D7723E60B23A0545B /* GridReuseTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GridReuseTests.m; sourceTree = "<group>"; };
+		FC8D897C2D0319AC0A4E7910 /* GridCellPreparationTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GridCellPreparationTests.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -194,6 +196,7 @@
 				17785F653FF1CB23B637DCE2 /* SwiftAPICompatibilityTests.swift */,
 				6BAD11EA1506171BA39F731A /* TOGridViewExampleTests-Bridging-Header.h */,
 				6908F16448BC404C22254BDD /* GridScrollingTests.m */,
+				FC8D897C2D0319AC0A4E7910 /* GridCellPreparationTests.m */,
 				A2B3AB6D7723E60B23A0545B /* GridReuseTests.m */,
 				B4D54C95184674893A83FE51 /* GridPrefetchTests.m */,
 			);
@@ -336,6 +339,7 @@
 				185D167803E88F9F7E75899B /* GridAPITests.m in Sources */,
 				31C144021C9C4C426EB5E821 /* SwiftAPICompatibilityTests.swift in Sources */,
 				FBEC50C24EB34C8662129DF9 /* GridScrollingTests.m in Sources */,
+				06B185E60F53FA5E3B49E238 /* GridCellPreparationTests.m in Sources */,
 				44E22ED55C22426CB25DE790 /* GridReuseTests.m in Sources */,
 				67B70EF5F9D9695BF50502BC /* GridPrefetchTests.m in Sources */,
 			);

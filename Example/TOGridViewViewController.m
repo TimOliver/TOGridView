@@ -41,6 +41,7 @@
     self.gridView.dataSource = self;
     self.gridView.crossfadeCellsOnRotation = YES;
     self.gridView.allowsSelectionDuringEditing = YES;
+    self.gridView.cellPrefetchingEnabled = YES;
     [self.view addSubview:self.gridView];
     [self installHeaderView];
 

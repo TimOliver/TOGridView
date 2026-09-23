@@ -37,6 +37,7 @@ final class SwiftAPICompatibilityTests: XCTestCase {
         grid.delegate = provider
         grid.prefetchDataSource = provider
         grid.prefetchRowCount = 1
+        grid.isCellPrefetchingEnabled = true
         grid.reloadGrid()
 
         let cells: [TOGridViewCell] = grid.visibleCellViews

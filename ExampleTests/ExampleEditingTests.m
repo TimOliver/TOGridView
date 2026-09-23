@@ -2,8 +2,15 @@
 #import <QuartzCore/QuartzCore.h>
 #import "TOGridViewTestCell.h"
 
+@interface EditingLayoutCell : TOGridViewTestCell
+@property (nonatomic) NSUInteger layoutCount;
+@end
+@implementation EditingLayoutCell
+- (void)layoutSubviews { [super layoutSubviews]; self.layoutCount++; }
+@end
+
 @interface ExampleEditingTests : XCTestCase
-@property (nonatomic, strong) TOGridViewTestCell *cell;
+@property (nonatomic, strong) EditingLayoutCell *cell;
 @end
 
 @implementation ExampleEditingTests
@@ -12,7 +19,7 @@
 {
     [super setUp];
     UIWindowScene *scene = (UIWindowScene *)UIApplication.sharedApplication.connectedScenes.anyObject;
-    self.cell = [[TOGridViewTestCell alloc] initWithFrame:CGRectMake(0, 0, 320, 72)];
+    self.cell = [[EditingLayoutCell alloc] initWithFrame:CGRectMake(0, 0, 320, 72)];
     self.cell.textLabel.text = @"Cell 0";
     [scene.keyWindow.rootViewController.view addSubview:self.cell];
     [self.cell layoutIfNeeded];
@@ -100,6 +107,32 @@
     XCTAssertEqualWithAccuracy(self.cell.textLabel.frame.origin.x, 52, 0.001);
     XCTAssertFalse([[self.cell valueForKey:@"selectionIndicator"] isHidden]);
     XCTAssertFalse([[self.cell valueForKey:@"reorderIndicator"] isHidden]);
+}
+
+- (void)testUnchangedSettledEditingDoesNotForceMoreLayout
+{
+    for (NSNumber *editing in @[@YES, @NO]) {
+        [self.cell setEditing:editing.boolValue animated:NO];
+        NSUInteger layouts = self.cell.layoutCount;
+        for (NSUInteger i = 0; i < 10; i++)
+            [self.cell setEditing:editing.boolValue animated:NO];
+        XCTAssertEqual(self.cell.layoutCount, layouts);
+    }
+}
+
+- (void)testSameValueNonanimatedEditingStillSettlesActiveTransition
+{
+    [self.cell setEditing:YES animated:YES];
+    [CATransaction flush];
+    [self.cell setEditing:YES animated:NO];
+    for (NSString *key in @[@"selectionIndicator", @"reorderIndicator"]) {
+        UIView *indicator = [self.cell valueForKey:key];
+        XCTAssertFalse(indicator.hidden);
+        XCTAssertEqualWithAccuracy(indicator.alpha, 1, 0.001);
+        XCTAssertNil([indicator.layer animationForKey:@"opacity"]);
+    }
+    XCTAssertNil([self.cell.textLabel.layer animationForKey:@"position"]);
+    XCTAssertEqualWithAccuracy(self.cell.textLabel.frame.origin.x, 52, 0.001);
 }
 
 @end

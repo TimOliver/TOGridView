@@ -116,6 +116,13 @@ NS_SWIFT_UI_ACTOR
    Zero disables prefetching and cancels outstanding requests. */
 @property (nonatomic) NSUInteger prefetchRowCount;
 
+/* Opt in to preparing at most one offscreen cell per display refresh on the main thread.
+   Default: NO. Keeps up to one row on each side of the visible range ready for display.
+   cellForIndex: may run early for an item that is never displayed. willDisplayCell: still
+   runs only when the cell enters the visible store. Visible misses are configured immediately.
+   Independent of data prefetching; a single synchronous callback cannot be interrupted. */
+@property (nonatomic, getter=isCellPrefetchingEnabled) BOOL cellPrefetchingEnabled;
+
 @property (nonatomic, strong, nullable) UIView      *headerView;                  /* A UIView placed at the top of the grid view. Set nil to remove. */
 @property (nonatomic, strong, nullable) UIView      *backgroundView;              /* A UIView placed behind the grid view and locked so it won't scroll */
 @property (nonatomic, strong, nullable) UIView      *footerView;                  /* A UIView placed at the bottom of the grid view. */

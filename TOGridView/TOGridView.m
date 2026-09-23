@@ -34,6 +34,13 @@
 static const NSTimeInterval TOGridViewReorderSpringDuration = 0.35;
 static const NSTimeInterval TOGridViewReorderStaggerDelay = 0.03;
 
+// A display link retains its target. Keep the grid weak so queued preparation cannot
+// extend the view's lifetime, including when it is removed while work is pending.
+@interface TOGridViewCellPreparationTarget : NSObject
+@property (nonatomic, weak) TOGridView *grid;
+- (void)tick:(CADisplayLink *)link;
+@end
+
 static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)(void), void (^completion)(BOOL))
 {
     // A critically damped spring gives the cascade a quick response and a soft landing.
@@ -92,6 +99,18 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
     NSUInteger _prefetchUpdateVersion;
     BOOL _prefetchUpdateScheduled;
     BOOL _prefetchNeedsDataSourceReload;
+
+    NSMutableDictionary<NSNumber *, TOGridViewCell *> *_preparedCells;
+    NSArray<NSNumber *> *_cellPreparationCandidates;
+    CADisplayLink *_cellPreparationDisplayLink;
+    NSUInteger _cellPreparationGeneration;
+    CFTimeInterval _estimatedCellPreparationDuration;
+    NSUInteger _cellPreparationDeadlineMisses;
+    BOOL _cellPreparationSuspendedForBudget;
+    CGFloat _previousPreparationOffset;
+    BOOL _preparingCellsUpwards;
+    BOOL _cellPreparationSuspendedForMemoryWarning;
+    UITraitCollection *_preparedCellTraits;
 }
 
 /* The class that is used to spawn cells */
@@ -191,7 +210,27 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
 - (void)schedulePrefetchUpdate;
 - (void)invalidatePrefetching;
 - (void)updatePrefetching;
+- (TOGridViewCell *)requestCellAtIndex:(NSInteger)index;
+- (void)configureCell:(TOGridViewCell *)cell atIndex:(NSInteger)index prepared:(BOOL)prepared;
+- (void)resetCellPreparationBudget;
+- (void)invalidateCellPreparation;
+- (void)updateCellPreparation;
+- (NSRange)cellPreparationRangeForVisibleRange:(NSRange)visibleRange;
+- (void)prepareNextCell:(CADisplayLink *)link;
+- (void)prepareCellBeforeDeadline:(CFTimeInterval)deadline;
+- (void)didReceiveMemoryWarning:(NSNotification *)notification;
 
+@end
+
+@implementation TOGridViewCellPreparationTarget
+- (void)tick:(CADisplayLink *)link
+{
+    TOGridView *grid = self.grid;
+    if (grid != nil)
+        [grid prepareNextCell:link];
+    else
+        [link invalidate];
+}
 @end
 
 @implementation TOGridView
@@ -231,9 +270,18 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
         self.draggingOverIndex          = -1;
         self.draggingCellIndex          = -1;
         _prefetchRowCount               = 2;
+        _estimatedCellPreparationDuration = 0.001;
+        [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(didReceiveMemoryWarning:)
+                                                   name:UIApplicationDidReceiveMemoryWarningNotification object:nil];
     }
     
     return self;
+}
+
+- (void)dealloc
+{
+    [_cellPreparationDisplayLink invalidate];
+    [NSNotificationCenter.defaultCenter removeObserver:self];
 }
 
 - (instancetype)initWithFrame:(CGRect)frame withCellClass:(Class)cellClass
@@ -249,6 +297,8 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
     if (cellClass != Nil && ![cellClass isSubclassOfClass:TOGridViewCell.class])
         [NSException raise:NSInvalidArgumentException format:@"Cell classes must inherit from TOGridViewCell."];
     self.cellClass = cellClass;
+    [self invalidateCellPreparation];
+    [self schedulePrefetchUpdate];
 }
 
 /* Kickstart the loading of the cells when this view is added to the view hierarchy */
@@ -289,6 +339,7 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
 - (void)resetCellMetrics
 {
     _cellLayoutGeneration++;
+    [self invalidateCellPreparation];
     [self schedulePrefetchUpdate];
     // Hold weak collaborators for this calculation. Missing optional metrics reset
     // to their defaults when the delegate changes or has been released.
@@ -398,6 +449,7 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
 - (void)invalidateVisibleCells
 {
     _cellLayoutGeneration++;
+    [self invalidateCellPreparation];
     [self enumerateCellDictionary:self.visibleCells withBlock:^(NSInteger index, TOGridViewCell *cell) {
         [cell removeFromSuperview];
         [self.recycledCells addObject:cell];
@@ -550,12 +602,30 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
     
     //work out the index range of which cells should be visible now
     NSRange visibleCellRange = [self rangeOfVisibleCellsInBounds:self.bounds];
+    if (_preparedCellTraits != nil && ![_preparedCellTraits isEqual:self.traitCollection]) {
+        [self invalidateCellPreparation];
+        [self schedulePrefetchUpdate];
+    }
     NSUInteger generation = _cellLayoutGeneration;
     BOOL canReuseRange = self.draggingCell == nil && self.insertingCells == nil && !self.pauseCellLayout;
     if (canReuseRange && _hasReconciledCellRange && _reconciledCellLayoutGeneration == generation &&
         NSEqualRanges(_reconciledCellRange, visibleCellRange) && self.visibleCells.count == visibleCellRange.length)
         return;
     _hasReconciledCellRange = NO;
+    _cellPreparationSuspendedForMemoryWarning = NO;
+    if (_cellPreparationSuspendedForBudget && !NSEqualRanges(_reconciledCellRange, visibleCellRange))
+        [self resetCellPreparationBudget];
+    NSRange preparationRange = [self cellPreparationRangeForVisibleRange:visibleCellRange];
+    // Prune synchronously so a series of scroll offsets in one run-loop turn cannot
+    // accumulate prepared rows before the deferred scheduler gets a chance to run.
+    for (NSNumber *key in _preparedCells.allKeys) {
+        if (!NSLocationInRange(key.unsignedIntegerValue, preparationRange)) {
+            TOGridViewCell *cell = _preparedCells[key];
+            if (cell != nil)
+                [self.recycledCells addObject:cell];
+            [_preparedCells removeObjectForKey:key];
+        }
+    }
     
     //go through each visible cell and see if they've moved beyond the visible range
     NSSet<NSNumber *> *cellsToRecyle = [self.visibleCells keysOfEntriesWithOptions:0 passingTest:^BOOL(NSNumber *key, TOGridViewCell *cell, BOOL *stop) {
@@ -569,7 +639,14 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
         
         [cell.layer removeAllAnimations];
         [cell removeFromSuperview];
-        [self.recycledCells addObject:cell];
+        if (NSLocationInRange(index, preparationRange)) {
+            if (self->_preparedCells == nil)
+                self->_preparedCells = [NSMutableDictionary dictionary];
+            self->_preparedCells[key] = cell;
+            self->_preparedCellTraits = self.traitCollection;
+        } else {
+            [self.recycledCells addObject:cell];
+        }
         
         return YES;
     }];
@@ -616,60 +693,71 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
     [self schedulePrefetchUpdate];
 }
 
+/* Requesting/configuring a cell is separate from making it visible. */
+- (TOGridViewCell *)requestCellAtIndex:(NSInteger)index
+{
+    // The cell data source now owns any data-prefetch request for this item.
+    if (_prefetchRequestGeneration == _prefetchGeneration)
+        [_prefetchedIndices removeIndex:index];
+    TOGridViewCell *cell = [self.dataSource gridView:self cellForIndex:index];
+    if (cell == nil)
+        [NSException raise:NSInternalInconsistencyException format:@"The datasource may not return a nil cell object"];
+    return cell;
+}
+
+- (void)configureCell:(TOGridViewCell *)cell atIndex:(NSInteger)index prepared:(BOOL)prepared
+{
+    id<TOGridViewDataSource> dataSource = self.dataSource;
+    if (!prepared || cell.hidden)
+        cell.hidden = NO;
+    if (!prepared || cell.highlighted)
+        [cell setHighlighted:NO animated:NO];
+
+    //if the cell has been selected, highlight it
+    if (self.allowsSelectionDuringEditing) {
+        BOOL selected = self.editing && [self.selectedCells containsObject:@(index)];
+        if ((!prepared && selected) || cell.selected != selected)
+            [cell setSelected:selected animated:NO];
+    }
+
+    // Recheck permissions at display time, but avoid toggling a prepared cell's state.
+    if (!prepared)
+        cell.draggable = NO;
+    BOOL draggable = _gridViewFlags.dataSourceCanMoveCell && [dataSource gridView:self canMoveCellAtIndex:index];
+    if (cell.draggable != draggable)
+        cell.draggable = draggable;
+
+    //set the cell editing state
+    BOOL editing = _gridViewFlags.dataSourceCanEditCell && self.editing && [dataSource gridView:self canEditCellAtIndex:index];
+    if (!prepared || cell.editing != editing)
+        cell.editing = editing;
+
+    //make sure the frame is still properly set
+    CGRect cellFrame;
+    cellFrame.origin = [self originOfCellAtIndex:index];
+    cellFrame.size = [self sizeOfCellAtIndex:index];
+    if (!prepared || !CGRectEqualToRect(cell.frame, cellFrame))
+        cell.frame = cellFrame;
+}
+
 /* Share the display lifecycle between scrolling and insertion. */
 - (TOGridViewCell *)addCellAtIndex:(NSInteger)index dataSourceIndex:(NSInteger)dataSourceIndex
 {
-    // The data source now owns this request. Do not cancel its load on a later scroll.
-    if (_prefetchRequestGeneration == _prefetchGeneration)
-        [_prefetchedIndices removeIndex:dataSourceIndex];
-    id<TOGridViewDataSource> dataSource = self.dataSource;
     BOOL animationsEnabled = [UIView areAnimationsEnabled];
     [UIView setAnimationsEnabled:NO];
     @try {
-        //Get the cell with its content setup from the dataSource
-        TOGridViewCell *cell = [dataSource gridView:self cellForIndex:dataSourceIndex];
-        if (cell == nil)
-            [NSException raise:NSInternalInconsistencyException format:@"The datasource may not return a nil cell object"];
-
-        cell.hidden = NO;
-        [cell setHighlighted:NO animated:NO];
-        
-        //if the cell has been selected, highlight it
-        if (self.allowsSelectionDuringEditing) {
-            if (self.editing && self.selectedCells && [self.selectedCells containsObject:@(index)])
-                [cell setSelected:YES animated:NO];
-            else if (cell.selected)
-                [cell setSelected:NO animated:NO];
-        }
-        
-        //see if we're editing and the current cell is draggable
-        cell.draggable = NO;
-        if (_gridViewFlags.dataSourceCanMoveCell) {
-            if ([dataSource gridView:self canMoveCellAtIndex:index])
-                cell.draggable = YES;
-        }
-        
-        //set the cell editing state
-        if (_gridViewFlags.dataSourceCanEditCell && self.editing)
-            cell.editing = [dataSource gridView:self canEditCellAtIndex:index];
+        TOGridViewCell *cell = dataSourceIndex == index ? _preparedCells[@(index)] : nil;
+        BOOL prepared = cell != nil;
+        if (cell != nil)
+            [_preparedCells removeObjectForKey:@(index)];
         else
-            cell.editing = NO;
-        
-        //make sure the frame is still properly set
-        CGRect cellFrame;
-        cellFrame.origin = [self originOfCellAtIndex:index];
-        cellFrame.size = [self sizeOfCellAtIndex:index];
-        cell.frame = cellFrame;
-        
-        //add it to the visible objects set (It's already out of the recycled set at this point)
+            cell = [self requestCellAtIndex:dataSourceIndex];
+
+        // Selection/editing may have changed while the cell waited offscreen.
+        [self configureCell:cell atIndex:index prepared:prepared];
         [self.visibleCells setObject:cell forKey:@(index)];
-        
-        //if set, let the delegate know we're about to display this cell
         if (_gridViewFlags.delegateWillDisplayCell)
             [self.delegate gridView:self willDisplayCell:cell atIndex:index];
-        
-        // Keep cell order inside the transparent container; headers, footers,
-        // backgrounds and scroll indicators remain separate from its snapshot.
         if (cell.superview == nil)
             [self.cellContainerView insertSubview:cell atIndex:0];
         return cell;
@@ -2175,6 +2263,181 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
 }
 
 #pragma mark -
+#pragma mark Cell Preparation
+
+- (void)setCellPrefetchingEnabled:(BOOL)cellPrefetchingEnabled
+{
+    if (_cellPrefetchingEnabled == cellPrefetchingEnabled)
+        return;
+    _cellPrefetchingEnabled = cellPrefetchingEnabled;
+    _cellPreparationSuspendedForMemoryWarning = NO;
+    [self invalidateCellPreparation];
+    [self schedulePrefetchUpdate];
+}
+
+- (void)invalidateCellPreparation
+{
+    _cellPreparationGeneration++;
+    [self resetCellPreparationBudget];
+    [_cellPreparationDisplayLink invalidate];
+    _cellPreparationDisplayLink = nil;
+    _cellPreparationCandidates = nil;
+    _preparedCellTraits = nil;
+    if (_preparedCells.count > 0) {
+        [self.recycledCells addObjectsFromArray:_preparedCells.allValues];
+        [_preparedCells removeAllObjects];
+    }
+}
+
+- (void)resetCellPreparationBudget
+{
+    _cellPreparationDeadlineMisses = 0;
+    _cellPreparationSuspendedForBudget = NO;
+    _estimatedCellPreparationDuration = 0.001;
+}
+
+- (void)didReceiveMemoryWarning:(NSNotification *)notification
+{
+    [self invalidateCellPreparation];
+    [self.recycledCells removeAllObjects];
+    // Do not immediately refill the cache in response to a queued prefetch update.
+    // Resume when a later visible-range/layout change needs reconciliation.
+    _cellPreparationSuspendedForMemoryWarning = YES;
+}
+
+- (NSRange)cellPreparationRangeForVisibleRange:(NSRange)visibleRange
+{
+    if (!self.cellPrefetchingEnabled || _cellPreparationSuspendedForMemoryWarning ||
+        _prefetchNeedsDataSourceReload || self.window == nil || self.hidden || self.window.hidden ||
+        self.dataSource == nil || self.pauseCellLayout || self.freezeLayoutSubviews ||
+        self.draggingCell != nil || self.insertingCells != nil || self.boundsChangeAnimation != nil ||
+        CGRectIsEmpty(self.bounds) || self.rowHeight <= 0 || visibleRange.length == 0 ||
+        self.numberOfCells <= 0 || visibleRange.location >= (NSUInteger)self.numberOfCells)
+        return NSMakeRange(0, 0);
+
+    NSUInteger count = self.numberOfCells;
+    NSUInteger distance = MAX(1, self.numberOfCellsPerRow);
+    NSUInteger end = visibleRange.location + MIN(visibleRange.length, count - visibleRange.location);
+    NSUInteger start = visibleRange.location - MIN(distance, visibleRange.location);
+    end += MIN(distance, count - end);
+    return NSMakeRange(start, end - start);
+}
+
+- (void)updateCellPreparation
+{
+    if (!self.cellPrefetchingEnabled)
+        return;
+    if (_preparedCellTraits != nil && ![_preparedCellTraits isEqual:self.traitCollection])
+        [self invalidateCellPreparation];
+    NSRange visibleRange = self.rowHeight > 0 ? self.visibleCellRange : NSMakeRange(0, 0);
+    NSRange range = [self cellPreparationRangeForVisibleRange:visibleRange];
+    if (range.length == 0) {
+        [self invalidateCellPreparation];
+        return;
+    }
+    if (self.bounds.origin.y != _previousPreparationOffset)
+        _preparingCellsUpwards = self.bounds.origin.y < _previousPreparationOffset;
+    _previousPreparationOffset = self.bounds.origin.y;
+
+    for (NSNumber *key in _preparedCells.allKeys) {
+        if (!NSLocationInRange(key.unsignedIntegerValue, range)) {
+            TOGridViewCell *cell = _preparedCells[key];
+            if (cell != nil)
+                [self.recycledCells addObject:cell];
+            [_preparedCells removeObjectForKey:key];
+        }
+    }
+    NSMutableArray<NSNumber *> *before = [NSMutableArray array];
+    NSMutableArray<NSNumber *> *after = [NSMutableArray array];
+    for (NSUInteger index = visibleRange.location; index > range.location; index--) {
+        NSNumber *key = @(index - 1);
+        if (_preparedCells[key] == nil && self.visibleCells[key] == nil)
+            [before addObject:key];
+    }
+    for (NSUInteger index = NSMaxRange(visibleRange); index < NSMaxRange(range); index++) {
+        NSNumber *key = @(index);
+        if (_preparedCells[key] == nil && self.visibleCells[key] == nil)
+            [after addObject:key];
+    }
+    _cellPreparationCandidates = _preparingCellsUpwards ? [before arrayByAddingObjectsFromArray:after] : [after arrayByAddingObjectsFromArray:before];
+    if (_cellPreparationCandidates.count == 0) {
+        [_cellPreparationDisplayLink invalidate];
+        _cellPreparationDisplayLink = nil;
+    } else if (!_cellPreparationSuspendedForBudget && _cellPreparationDisplayLink == nil) {
+        TOGridViewCellPreparationTarget *target = [TOGridViewCellPreparationTarget new];
+        target.grid = self;
+        _cellPreparationDisplayLink = [CADisplayLink displayLinkWithTarget:target selector:@selector(tick:)];
+        float maximum = self.window.screen.maximumFramesPerSecond;
+        _cellPreparationDisplayLink.preferredFrameRateRange = CAFrameRateRangeMake(MIN(30, maximum), maximum, maximum);
+        [_cellPreparationDisplayLink addToRunLoop:NSRunLoop.mainRunLoop forMode:NSRunLoopCommonModes];
+    }
+}
+
+- (void)prepareNextCell:(CADisplayLink *)link
+{
+    if (link != _cellPreparationDisplayLink)
+        return;
+    // Leave some time for the rest of UIKit's frame. This is a best-effort estimate:
+    // one client's synchronous cell callback cannot be interrupted halfway through.
+    CFTimeInterval reserve = MIN(0.002, (link.targetTimestamp - link.timestamp) * 0.25);
+    [self prepareCellBeforeDeadline:link.targetTimestamp - reserve];
+}
+
+- (void)prepareCellBeforeDeadline:(CFTimeInterval)deadline
+{
+    [self updateCellPreparation];
+    if (_cellPreparationCandidates.count == 0 || _cellPreparationSuspendedForBudget)
+        return;
+    CFTimeInterval start = CACurrentMediaTime();
+    if (deadline - start < _estimatedCellPreparationDuration) {
+        // A costly sample (or consistently late callbacks) must not leave an idle
+        // display link spinning forever. Keep ready cells, and retry only after a
+        // visible-range change or invalidation gives us a new preparation context.
+        if (++_cellPreparationDeadlineMisses >= 3) {
+            _cellPreparationSuspendedForBudget = YES;
+            [_cellPreparationDisplayLink invalidate];
+            _cellPreparationDisplayLink = nil;
+        }
+        return;
+    }
+    _cellPreparationDeadlineMisses = 0;
+
+    NSNumber *key = _cellPreparationCandidates.firstObject;
+    NSUInteger generation = _cellPreparationGeneration;
+    CGRect bounds = self.bounds;
+    UITraitCollection *traits = self.traitCollection;
+    __block TOGridViewCell *cell = nil;
+    BOOL animationsEnabled = UIView.areAnimationsEnabled;
+    [UIView setAnimationsEnabled:NO];
+    @try {
+        [traits performAsCurrentTraitCollection:^{
+            cell = [self requestCellAtIndex:key.integerValue];
+            if (generation == self->_cellPreparationGeneration) {
+                [self configureCell:cell atIndex:key.integerValue prepared:NO];
+                [cell setNeedsLayout];
+                [cell layoutIfNeeded];
+            }
+        }];
+    } @finally {
+        [UIView setAnimationsEnabled:animationsEnabled];
+    }
+    // React immediately to expensive cells, then allow the estimate to decay gradually.
+    if (generation == _cellPreparationGeneration)
+        _estimatedCellPreparationDuration = MAX(0.001, MAX(CACurrentMediaTime() - start, _estimatedCellPreparationDuration * 0.9));
+    if (generation == _cellPreparationGeneration && CGRectEqualToRect(bounds, self.bounds) &&
+        [traits isEqual:self.traitCollection] && cell.superview == nil) {
+        if (_preparedCells == nil)
+            _preparedCells = [NSMutableDictionary dictionary];
+        _preparedCells[key] = cell;
+        _preparedCellTraits = traits;
+    } else if (cell.superview == nil) {
+        // A callback may reload/disable the grid. Never publish that stale result.
+        [self.recycledCells addObject:cell];
+    }
+    [self updateCellPreparation];
+}
+
+#pragma mark -
 #pragma mark Data Prefetching
 
 - (void)setPrefetchDataSource:(id<TOGridViewDataSourcePrefetching>)prefetchDataSource
@@ -2199,13 +2462,14 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
 - (void)invalidatePrefetching
 {
     _prefetchGeneration++;
+    [self invalidateCellPreparation];
     [self schedulePrefetchUpdate];
 }
 
 - (void)schedulePrefetchUpdate
 {
     // No allocation or queue work for clients that have not opted in.
-    if (_prefetchDataSource == nil && _prefetchedIndices.count == 0)
+    if (_prefetchDataSource == nil && _prefetchedIndices.count == 0 && !self.cellPrefetchingEnabled)
         return;
     _prefetchUpdateVersion++;
     if (_prefetchUpdateScheduled)
@@ -2218,6 +2482,7 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
             return;
         grid->_prefetchUpdateScheduled = NO;
         [grid updatePrefetching];
+        [grid updateCellPreparation];
     });
 }
 
@@ -2247,6 +2512,8 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
             [desired addIndexesInRange:NSMakeRange(end, MIN(distance, count - end))];
             // Geometry may have changed before UIKit gets to its next layout pass.
             for (NSNumber *index in self.visibleCells)
+                [desired removeIndex:index.unsignedIntegerValue];
+            for (NSNumber *index in _preparedCells)
                 [desired removeIndex:index.unsignedIntegerValue];
         } else {
             visibleRange = NSMakeRange(0, 0);
@@ -2296,6 +2563,8 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
         return;
     
     _cellLayoutGeneration++;
+    [self invalidateCellPreparation];
+    [self schedulePrefetchUpdate];
     [super setDelegate:delegate];
     
     //Update the flags with the state of the new delegate
@@ -2428,6 +2697,8 @@ static void TOGridViewAnimateReordering(NSTimeInterval delay, void (^animations)
 
 - (void)setEditing:(BOOL)editing animated:(BOOL)animated
 {
+    [self invalidateCellPreparation];
+    [self schedulePrefetchUpdate];
     _editing = editing;
     
     /* If we ended editing, make sure to kill the scroll timer. */

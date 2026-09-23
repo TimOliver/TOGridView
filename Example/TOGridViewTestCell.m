@@ -8,6 +8,7 @@
 @property (nonatomic, strong) UIImageView *selectionIndicator;
 @property (nonatomic, strong) UIImageView *reorderIndicator;
 @property (nonatomic) NSUInteger editingAnimationGeneration;
+@property (nonatomic) BOOL editingTransitionInFlight;
 @end
 
 @implementation TOGridViewTestCell
@@ -78,13 +79,18 @@
 - (void)setEditing:(BOOL)editing animated:(BOOL)animated
 {
     BOOL changed = self.editing != editing;
+    BOOL animates = animated && UIView.areAnimationsEnabled;
+    // A same-value nonanimated call still settles an active transition immediately.
+    if (!changed && (animates || !self.editingTransitionInFlight))
+        return;
     [self layoutIfNeeded];
     [super setEditing:editing animated:animated];
     self.accessibilityHint = editing ? @"Double-tap to select. Touch and hold to reorder." : nil;
     [self updateSelectionAppearance];
 
-    if (!animated || !UIView.areAnimationsEnabled) {
+    if (!animates) {
         self.editingAnimationGeneration++;
+        self.editingTransitionInFlight = NO;
         [UIView performWithoutAnimation:^{
             for (UIView *indicator in @[self.selectionIndicator, self.reorderIndicator]) {
                 [indicator.layer removeAllAnimations];
@@ -97,10 +103,8 @@
         }];
         return;
     }
-    if (!changed)
-        return;
-
     NSUInteger generation = ++self.editingAnimationGeneration;
+    self.editingTransitionInFlight = YES;
     self.selectionIndicator.hidden = NO;
     self.reorderIndicator.hidden = NO;
     UIViewAnimationOptions options = UIViewAnimationOptionBeginFromCurrentState | UIViewAnimationOptionAllowUserInteraction;
@@ -117,12 +121,16 @@
 
     [self setNeedsLayout];
     void (^layout)(void) = ^{ [self layoutIfNeeded]; };
+    void (^completion)(BOOL) = ^(BOOL finished) {
+        if (generation == self.editingAnimationGeneration)
+            self.editingTransitionInFlight = NO;
+    };
     if (@available(iOS 17.0, *)) {
         [UIView animateWithSpringDuration:0.35 bounce:0 initialSpringVelocity:0 delay:0
-                                 options:options animations:layout completion:nil];
+                                 options:options animations:layout completion:completion];
     } else {
         [UIView animateWithDuration:0.35 delay:0 usingSpringWithDamping:1 initialSpringVelocity:0
-                            options:options animations:layout completion:nil];
+                            options:options animations:layout completion:completion];
     }
 }
 

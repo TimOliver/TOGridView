@@ -65,7 +65,23 @@ Callbacks run on the main thread after the current layout/update call stack. Req
 
 Reloads and index-changing edits cancel outstanding requests before issuing fresh ones. Cancellation indices identify the original requests: after changing your model, use saved item IDs/task handles rather than looking up those indices again. This also applies to single-cell reloads, which conservatively invalidate all pending prefetch requests. Call `reloadGrid` after replacing the cell data source so the grid has current counts and metrics.
 
-Prefetching pauses during animated edits and cell dragging, and while the grid is detached from a window. Set `prefetchRowCount` to zero or clear `prefetchDataSource` to disable it. Cancellation is deferred and advisory; no callbacks are sent from deallocation, so the provider remains responsible for its own task/cache lifetime. Prefetching prepares application data only; it does not create offscreen cells or spread cell configuration across frames.
+Data prefetching pauses during animated edits and cell dragging, and while the grid is detached from a window. Set `prefetchRowCount` to zero or clear `prefetchDataSource` to disable it. Cancellation is deferred and advisory; no callbacks are sent from deallocation, so the provider remains responsible for its own task/cache lifetime. These callbacks prepare application data; cell preparation is a separate option below.
+
+## Preparing cells across frames
+
+Enable early cell configuration independently of data prefetching:
+
+```objc
+gridView.cellPrefetchingEnabled = YES; // Default: NO; enabled in the example app.
+```
+
+The grid uses a display link to request and lay out at most one offscreen cell per display refresh, on the main thread. It keeps up to one row on each side of the visible range ready, prioritizing the scroll direction. A prepared cell is displayed without calling `gridView:cellForIndex:` again. State, permissions and geometry are rechecked at display time, but unchanged values avoid redundant cell setters. Cells that just left the viewport can also stay ready for a reversal. The display link stops when the cache is ready or preparation is suspended.
+
+Opting in changes the timing of `gridView:cellForIndex:`: it can be called early for an item that never appears onscreen. Prepared cells are detached and are not included in `cellForIndex:` or `visibleCellViews`. Preparation uses the grid's traits as the current trait collection; use `gridView.traitCollection` for explicit environment queries. Put work requiring a window or visibility in `willDisplayCell:atIndex:`. Display callbacks still describe the visible lifecycle, and `prepareForReuse` still runs when a recycled cell is dequeued for new content. A data-prefetch request is handed over when cell configuration begins, which may now be before display.
+
+Reloads, edits, geometry changes, and changes to the grid's traits invalidate prepared content. Preparation pauses while dragging cells or animating edits, and stops on detachment or disablement. Memory warnings release spare cells and suspend preparation until a later layout/visible-range change.
+
+Already-visible cells are always supplied immediately, including the initial load and fast jumps that outrun preparation. The scheduler compares its measured cell preparation cost with the [next display deadline](https://developer.apple.com/documentation/quartzcore/cadisplaylink/targettimestamp) and leaves time for other frame work. After three consecutive budget misses, it stops the display link and keeps any ready cells. A visible-range change or preparation invalidation permits a fresh attempt with a reset cost estimate; queued updates alone cannot restart it. This is a best-effort check, not a hard time limit: it cannot interrupt an expensive synchronous data-source callback or split one cell's configuration across frames. Image I/O and decoding should still happen asynchronously in the app.
 
 ## What exactly is this thing?
 
