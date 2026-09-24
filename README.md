@@ -83,6 +83,25 @@ Reloads, edits, geometry changes, and changes to the grid's traits invalidate pr
 
 Already-visible cells are always supplied immediately, including the initial load and fast jumps that outrun preparation. The scheduler compares its measured cell preparation cost with the [next display deadline](https://developer.apple.com/documentation/quartzcore/cadisplaylink/targettimestamp) and leaves time for other frame work. After three consecutive budget misses, it stops the display link and keeps any ready cells. A visible-range change or preparation invalidation permits a fresh attempt with a reset cost estimate; queued updates alone cannot restart it. This is a best-effort check, not a hard time limit: it cannot interrupt an expensive synchronous data-source callback or split one cell's configuration across frames. Image I/O and decoding should still happen asynchronously in the app.
 
+## Implementation layout and integration
+
+The public API remains in `TOGridView.h` and `TOGridViewCell.h`. The grid's implementation is organized into private categories:
+
+| File | Responsibility |
+| --- | --- |
+| `TOGridView.m` | Lifecycle, public entry points, accessors, and UIKit overrides |
+| `TOGridView+Layout.m` | Metrics, visible-cell reconciliation, recycling, and rotation |
+| `TOGridView+Updates.m` | Insertion, deletion, reloading, selection, and shared spring animation |
+| `TOGridView+Dragging.m` | Touch handling, reordering, and drag autoscrolling |
+| `TOGridView+Prefetching.m` | Data requests, cell preparation, caching, and scheduling |
+| `TOGridView+Private.h` | Internal instance storage, properties, and category declarations |
+
+When copying the library into an app, compile **all `.m` files in the `TOGridView` directory** and keep the private header alongside them. Client code only needs to import the public headers; do not publish `TOGridView+Private.h` as a framework's public header. If distributing the sources as a static library, add `-ObjC` to the consuming target's **Other Linker Flags** so the linker loads the category implementations. The example compiles the sources directly and does not need this flag.
+
+The categories share the grid's existing state. Public selectors and overridable geometry/reuse methods remain in the primary implementation. UIKit overrides delegate to private helpers where needed; callers and subclasses continue to use the same API.
+
+With a simulator booted, maintainers can verify static-library category loading using `python3 Scripts/check-static-library.py --simulator booted`. This builds the library as an archive and runs a consumer linked with `-ObjC` and dead stripping enabled.
+
 ## What exactly is this thing?
 
 TOGridView is a class I'm developing for implementation into my commercial iOS app [iComics](http://icomics.co/). Given the relatively

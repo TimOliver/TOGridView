@@ -30,6 +30,10 @@
 		67B70EF5F9D9695BF50502BC /* GridPrefetchTests.m in Sources */ = {isa = PBXBuildFile; fileRef = B4D54C95184674893A83FE51 /* GridPrefetchTests.m */; };
 		44E22ED55C22426CB25DE790 /* GridReuseTests.m in Sources */ = {isa = PBXBuildFile; fileRef = A2B3AB6D7723E60B23A0545B /* GridReuseTests.m */; };
 		06B185E60F53FA5E3B49E238 /* GridCellPreparationTests.m in Sources */ = {isa = PBXBuildFile; fileRef = FC8D897C2D0319AC0A4E7910 /* GridCellPreparationTests.m */; };
+		392AACDD486B66D6F4FF71D3 /* TOGridView+Layout.m in Sources */ = {isa = PBXBuildFile; fileRef = 8DECE6160052CDED94061100 /* TOGridView+Layout.m */; };
+		34613326027FE0A80DB3A3C5 /* TOGridView+Updates.m in Sources */ = {isa = PBXBuildFile; fileRef = 01DDE60FD8390E378AB5DBDE /* TOGridView+Updates.m */; };
+		E5F045B2B6AF61D8FF7FD5EC /* TOGridView+Dragging.m in Sources */ = {isa = PBXBuildFile; fileRef = B21F870B7D10A78F16C0740F /* TOGridView+Dragging.m */; };
+		5B0BA1E101D2CFA1442F2498 /* TOGridView+Prefetching.m in Sources */ = {isa = PBXBuildFile; fileRef = 984C2819FEE492E20420B55C /* TOGridView+Prefetching.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -83,6 +87,11 @@
 		B4D54C95184674893A83FE51 /* GridPrefetchTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GridPrefetchTests.m; sourceTree = "<group>"; };
 		A2B3AB6D7723E60B23A0545B /* GridReuseTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GridReuseTests.m; sourceTree = "<group>"; };
 		FC8D897C2D0319AC0A4E7910 /* GridCellPreparationTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GridCellPreparationTests.m; sourceTree = "<group>"; };
+		61B4A4E7E8EBDAAC5F2DB314 /* TOGridView+Private.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "TOGridView+Private.h"; sourceTree = "<group>"; };
+		8DECE6160052CDED94061100 /* TOGridView+Layout.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "TOGridView+Layout.m"; sourceTree = "<group>"; };
+		01DDE60FD8390E378AB5DBDE /* TOGridView+Updates.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "TOGridView+Updates.m"; sourceTree = "<group>"; };
+		B21F870B7D10A78F16C0740F /* TOGridView+Dragging.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "TOGridView+Dragging.m"; sourceTree = "<group>"; };
+		984C2819FEE492E20420B55C /* TOGridView+Prefetching.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "TOGridView+Prefetching.m"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -121,6 +130,11 @@
 			children = (
 				226C94AC16ABB95F007650CD /* TOGridView.h */,
 				226C94AD16ABB95F007650CD /* TOGridView.m */,
+				61B4A4E7E8EBDAAC5F2DB314 /* TOGridView+Private.h */,
+				8DECE6160052CDED94061100 /* TOGridView+Layout.m */,
+				01DDE60FD8390E378AB5DBDE /* TOGridView+Updates.m */,
+				B21F870B7D10A78F16C0740F /* TOGridView+Dragging.m */,
+				984C2819FEE492E20420B55C /* TOGridView+Prefetching.m */,
 				226C94AE16ABB95F007650CD /* TOGridViewCell.h */,
 				226C94AF16ABB95F007650CD /* TOGridViewCell.m */,
 			);
@@ -350,6 +364,10 @@
 			buildActionMask = 2147483647;
 			files = (
 				226C94B016ABB95F007650CD /* TOGridView.m in Sources */,
+				392AACDD486B66D6F4FF71D3 /* TOGridView+Layout.m in Sources */,
+				34613326027FE0A80DB3A3C5 /* TOGridView+Updates.m in Sources */,
+				E5F045B2B6AF61D8FF7FD5EC /* TOGridView+Dragging.m in Sources */,
+				5B0BA1E101D2CFA1442F2498 /* TOGridView+Prefetching.m in Sources */,
 				226C94B116ABB95F007650CD /* TOGridViewCell.m in Sources */,
 				226C94B616ABB96D007650CD /* TOGridViewAppDelegate.m in Sources */,
 				226C94B716ABB96D007650CD /* TOGridViewViewController.m in Sources */,
