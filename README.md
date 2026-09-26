@@ -26,6 +26,22 @@ xcodebuild -project TOGridViewExample.xcodeproj -scheme TOGridViewExample \
 
 Choose an available simulator name on your Mac. The screenshot above and the background below describe the original release.
 
+### Device scrolling benchmarks
+
+Run the opt-in scrolling suite on an unlocked, connected device using a Release build:
+
+```sh
+xcrun xctrace list devices
+python3 Scripts/benchmark-ipad.py --device DEVICE_UDID --team DEVELOPMENT_TEAM \
+  --output Benchmarks/device-run --include-behavior-tests
+```
+
+Use a new output directory for each run. The script signs the sample and test runner, then runs each UI case separately and exports its metrics beside the `.xcresult` bundle. Cases cover cell preparation on/off, landscape, editing, and 10,000 items. Each measures five repetitions of four fast swipes after warming the grid, collecting scrolling/deceleration hitch metrics, app CPU time, and physical memory. These are lightweight sample cells; the results do not represent image decoding or expensive client callbacks. CPU time includes the entire measured gesture sequence and automation waits, not just grid layout.
+
+Ordinary test runs skip these benchmarks. The script enables them with `TOGRID_RUN_BENCHMARKS=1` in the test runner. The sample accepts `TOGRID_BENCHMARK_COUNT` (up to 100,000) and `TOGRID_BENCHMARK_PREPARATION=0` in its launch environment; its default behavior is unchanged. To repeat one case, pass `--test TOGridViewExampleUITests/GridScrollBenchmarks/testPortraitPreparationOn`.
+
+For library overhead with cheap cells, pass `--test TOGridViewExampleTests/GridOverheadBenchmarks`. This test uses a display link to exercise 82- and 820-cell viewports, row crossings, reversals, distant jumps, and idle periods. Its `grid-overhead.json` attachment contains reconciliation/preparation timings and cell allocation/layout counts. These are programmatic offset changes and method timings, not rendered FPS. See [the iPad overhead investigation](Documentation/Library-Overhead-2017-iPad-Pro.md) for results and measurement boundaries.
+
 ## Objective-C and Swift API
 
 The public headers declare nullability, typed collections, and a typed scroll-position enum. Swift receives optional offscreen cells and auxiliary views, `[TOGridViewCell]` for visible cells, and `[NSNumber]` for index arrays. Collection getters return empty arrays when there are no entries. The grid and its data-source/delegate callbacks belong on the main thread; the protocols also declare this requirement to Swift's concurrency checker.
@@ -37,6 +53,8 @@ For Swift, the custom initializer is `TOGridView(frame:cellClass:)` and scroll p
 The unit-test target includes a Swift 6 client that checks these imports and implements the callbacks with main-actor state.
 
 During scrolling, the grid skips cell reconciliation while the visible range and layout state are unchanged. Reloads, edits, and geometry changes invalidate this shortcut; the scroll container still updates normally. The reuse pool removes cells from its end, and reuse order is unspecified. Public geometry methods remain overridable.
+
+When a reliable previous range overlaps the new viewport, incoming-cell lookup skips the unchanged overlap. Recycling still checks the visible cell dictionary, and invalidated layout or active updates use the full lookup path. Cell preparation rebuilds candidates once per successful preparation tick and stops immediately after the last candidate.
 
 ## Cell reuse and data prefetching
 

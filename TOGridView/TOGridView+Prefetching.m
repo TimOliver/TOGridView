@@ -197,6 +197,15 @@
             _preparedCells = [NSMutableDictionary dictionary];
         _preparedCells[key] = cell;
         _preparedCellTraits = traits;
+        // Nothing else changed while preparing this cell. The next tick rebuilds
+        // candidates before using them; avoid rebuilding the same list twice now.
+        // Stop immediately when this was the last candidate, without an idle tick.
+        if (_cellPreparationCandidates.count == 1) {
+            [_cellPreparationDisplayLink invalidate];
+            _cellPreparationDisplayLink = nil;
+            _cellPreparationCandidates = nil;
+        }
+        return;
     } else if (cell.superview == nil) {
         // A callback may reload/disable the grid. Never publish that stale result.
         [self.recycledCells addObject:cell];

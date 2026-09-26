@@ -30,8 +30,14 @@
 @property (nonatomic) CFTimeInterval preparationTimestamp;
 @property (nonatomic) BOOL testWithGenerousDeadline;
 @property (nonatomic) CGFloat cellOriginAdjustment;
+@property (nonatomic) NSUInteger preparationUpdates;
 @end
 @implementation PreparationGrid
+- (void)updateCellPreparation
+{
+    self.preparationUpdates++;
+    [super updateCellPreparation];
+}
 - (CGPoint)originOfCellAtIndex:(NSInteger)index
 {
     CGPoint origin = [super originOfCellAtIndex:index];
@@ -178,6 +184,17 @@
     XCTAssertEqual([NSSet setWithArray:timestamps].count, 3);
     for (NSUInteger i = 1; i < timestamps.count; i++)
         XCTAssertGreaterThan(timestamps[i].doubleValue, timestamps[i - 1].doubleValue);
+}
+- (void)testPreparingOneCellOnlyRebuildsCandidatesOnce
+{
+    self.grid.cellPrefetchingEnabled = YES;
+    for (NSUInteger count = 1; count <= 3; count++) {
+        self.grid.preparationUpdates = 0;
+        [self step];
+        XCTAssertEqual(self.grid.preparationUpdates, 1);
+        XCTAssertEqual(self.requests.count, count);
+    }
+    XCTAssertNil([self.grid valueForKey:@"cellPreparationDisplayLink"]);
 }
 - (void)testExpiredDeadlineSkipsWork
 {

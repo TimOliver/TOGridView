@@ -1,5 +1,49 @@
 import XCTest
 
+// Opt in with -only-testing:TOGridViewExampleUITests/GridScrollBenchmarks.
+// Release builds on physical devices are required for useful performance results.
+final class GridScrollBenchmarks: XCTestCase {
+    private func benchmark(count: Int = 256, preparation: Bool = true,
+                           landscape: Bool = false, editing: Bool = false) throws {
+        guard ProcessInfo.processInfo.environment["TOGRID_RUN_BENCHMARKS"] == "1" else {
+            throw XCTSkip("Set TOGRID_RUN_BENCHMARKS=1 in the test runner environment to opt in")
+        }
+        continueAfterFailure = false
+        XCUIDevice.shared.orientation = landscape ? .landscapeLeft : .portrait
+        let app = XCUIApplication()
+        app.launchEnvironment["TOGRID_BENCHMARK_COUNT"] = String(count)
+        app.launchEnvironment["TOGRID_BENCHMARK_PREPARATION"] = preparation ? "1" : "0"
+        app.launch()
+        defer {
+            app.terminate()
+            XCUIDevice.shared.orientation = .portrait
+        }
+        XCTAssertTrue(app.staticTexts["item-count"].waitForExistence(timeout: 15))
+        XCTAssertEqual(app.staticTexts["item-count"].label, "\(count) cells")
+        if editing { app.buttons["Edit"].tap() }
+        let grid = app.scrollViews["grid"]
+        grid.swipeUp(velocity: .fast) // Warm fonts, symbols, and the reuse pool.
+        let options = XCTMeasureOptions()
+        options.iterationCount = 5
+        measure(metrics: [XCTOSSignpostMetric.scrollingAndDecelerationMetric,
+                          XCTCPUMetric(application: app), XCTMemoryMetric(application: app)],
+                options: options) {
+            grid.swipeUp(velocity: .fast)
+            grid.swipeUp(velocity: .fast)
+            grid.swipeDown(velocity: .fast)
+            grid.swipeDown(velocity: .fast)
+        }
+        XCTAssertEqual(app.staticTexts["item-count"].label, "\(count) cells")
+        XCTAssertGreaterThan(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'cell-'")).count, 0)
+    }
+
+    func testPortraitPreparationOn() throws { try benchmark() }
+    func testPortraitPreparationOff() throws { try benchmark(preparation: false) }
+    func testLandscapePreparationOn() throws { try benchmark(landscape: true) }
+    func testLargeDataSet() throws { try benchmark(count: 10000) }
+    func testEditingScroll() throws { try benchmark(editing: true) }
+}
+
 final class ExampleUITests: XCTestCase {
     private var app: XCUIApplication!
 

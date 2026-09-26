@@ -217,6 +217,13 @@
     if (canReuseRange && _hasReconciledCellRange && _reconciledCellLayoutGeneration == generation &&
         NSEqualRanges(_reconciledCellRange, visibleCellRange) && self.visibleCells.count == visibleCellRange.length)
         return;
+    // An intact previous range already supplies the overlap. Only incoming indices
+    // need lookup/configuration; edits and incomplete passes retain the full scan.
+    NSRange unchangedRange = NSMakeRange(0, 0);
+    if (canReuseRange && _hasReconciledCellRange && _reconciledCellLayoutGeneration == generation &&
+        self.visibleCells.count == _reconciledCellRange.length &&
+        _reconciledCellRange.length > 0 && visibleCellRange.length > 0)
+        unchangedRange = NSIntersectionRange(_reconciledCellRange, visibleCellRange);
     _hasReconciledCellRange = NO;
     _cellPreparationSuspendedForMemoryWarning = NO;
     if (_cellPreparationSuspendedForBudget && !NSEqualRanges(_reconciledCellRange, visibleCellRange))
@@ -264,6 +271,10 @@
         for (NSInteger i = 0; i < visibleCellRange.length; i++)
         {
             NSInteger index = visibleCellRange.location+i;
+            if (_cellLayoutGeneration == generation && NSLocationInRange(index, unchangedRange)) {
+                i += NSMaxRange(unchangedRange) - index - 1;
+                continue;
+            }
         
             TOGridViewCell *cell = [self cellForIndex:index];
             if (cell) {

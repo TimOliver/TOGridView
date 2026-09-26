@@ -29,7 +29,10 @@
     self.navigationItem.compactAppearance = appearance;
 
     self.numbers = [NSMutableArray array];
-    for (NSUInteger i = 0; i < 256; i++)
+    NSDictionary<NSString *, NSString *> *benchmarkEnvironment = NSProcessInfo.processInfo.environment;
+    NSUInteger itemCount = [benchmarkEnvironment[@"TOGRID_BENCHMARK_COUNT"] integerValue];
+    itemCount = itemCount > 0 ? MIN(itemCount, 100000) : 256;
+    for (NSUInteger i = 0; i < itemCount; i++)
         [self.numbers addObject:@(i)];
     self.nextNumber = self.numbers.count;
 
@@ -41,7 +44,7 @@
     self.gridView.dataSource = self;
     self.gridView.crossfadeCellsOnRotation = YES;
     self.gridView.allowsSelectionDuringEditing = YES;
-    self.gridView.cellPrefetchingEnabled = YES;
+    self.gridView.cellPrefetchingEnabled = ![benchmarkEnvironment[@"TOGRID_BENCHMARK_PREPARATION"] isEqualToString:@"0"];
     [self.view addSubview:self.gridView];
     [self installHeaderView];
 

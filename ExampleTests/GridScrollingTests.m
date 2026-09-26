@@ -5,6 +5,17 @@
 - (void)layoutCells;
 @end
 
+@interface LookupCountingGrid : TOGridView
+@property (nonatomic) NSUInteger lookups;
+@end
+@implementation LookupCountingGrid
+- (TOGridViewCell *)cellForIndex:(NSInteger)index
+{
+    self.lookups++;
+    return [super cellForIndex:index];
+}
+@end
+
 @interface GeometryOverrideGrid : TOGridView
 @end
 
@@ -126,6 +137,24 @@
     [self.grid reloadGrid];
     [self.grid layoutCells];
     [self assertVisibleContent];
+}
+- (void)testRowCrossingsOnlyLookUpEnteringCells
+{
+    LookupCountingGrid *grid = [[LookupCountingGrid alloc] initWithFrame:CGRectMake(0, 0, 300, 300)];
+    self.grid = grid;
+    grid.dataSource = self;
+    grid.delegate = self;
+    [grid reloadGrid];
+    for (NSNumber *offset in @[@90, @0, @90, @0]) {
+        grid.lookups = 0;
+        self.configurations = self.endedDisplays = 0;
+        grid.contentOffset = CGPointMake(0, offset.doubleValue);
+        [grid layoutSubviews];
+        XCTAssertLessThanOrEqual(grid.lookups, 3);
+        XCTAssertEqual(self.configurations, 3);
+        XCTAssertEqual(self.endedDisplays, 3);
+        [self assertVisibleContent];
+    }
 }
 - (void)testInsertionAndDeletionWithinSameVisibleRange
 {
